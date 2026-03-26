@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/db'
+import { getSession } from '@/lib/auth'
+import crypto from 'crypto'
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const mine = searchParams.get('mine')
+
+  let query = supabase
+    .from('appointments')
+    .select(`
+      *,
+      doctor:doctors!appointments_doctor_id_fkey(
+        id,
+        user:users!doctors_user_id_fkey(name)
+      )
+    `)
+    .order('scheduled_at')
+
+  if (mine === 'true') {
+    const session = await getSession()
+    if (session && session.role === 'DOCTOR') {
+      const { data: doctor } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('user_id', session.userId)
+        .single()
+      if (doctor) query = query.eq('doctor_id', doctor.id)
+    }
+    // Today's appointments
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    query = query.gte('scheduled_at', today.toISOString()).lt('scheduled_at', tomorrow.toISOString())
+  }
+
+  const { data: appointments, error } = await query
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(appointments)
+}
+
+export async function POST(request: NextRequest) {
+  const { patientName, patientPhone, symptoms, doctorId, scheduledAt, notes } = await request.json()
+
+  if (!patientName || !doctorId || !scheduledAt) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  const qrCode = crypto.randomUUID()
+
+  const { data: appointment, error } = await supabase
+    .from('appointments')
+    .insert({
+      patient_name: patientName,
+      patient_phone: patientPhone || null,
+      symptoms: symptoms || null,
+      doctor_id: doctorId,
+      scheduled_at: new Date(scheduledAt).toISOString(),
+      notes: notes || null,
+      qr_code: qrCode,
+    })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json(appointment, { status: 201 })
+}

@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ─── Kiosk Container ─── */
+.kiosk-container {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kiosk-container::-webkit-scrollbar { width: 6px; }
+.kiosk-container::-webkit-scrollbar-track { background: transparent; }
+.kiosk-container::-webkit-scrollbar-thumb {
+  background: rgba(30, 58, 138, 0.2);
+  border-radius: 99px;
+}
+
+/* ─── Dashboard ─── */
+.dashboard-container {
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+/* ─── Kiosk Card ─── */
+.kiosk-card {
+  @apply bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800
+         hover:shadow-xl active:scale-[0.97] transition-all duration-200 cursor-pointer;
+}
+
+.kiosk-card-icon {
+  @apply w-14 h-14 rounded-xl flex items-center justify-center text-white text-2xl
+         shadow-md group-hover:scale-110 transition-transform duration-200;
+}
+
+/* ─── Gradient Backgrounds ─── */
+.bg-kiosk-light {
+  background: linear-gradient(145deg, #f0f4ff 0%, #e8f2fc 50%, #f0faff 100%);
+}
+.bg-kiosk-dark {
+  background: linear-gradient(145deg, #0a0f1e 0%, #0d1b2a 60%, #0a1628 100%);
+}
+
+/* ─── Hero Gradient ─── */
+.hero-gradient {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 45%, #0891b2 100%);
+}
+
+/* ─── Button Styles ─── */
+.btn-primary {
+  @apply px-6 py-3 rounded-xl bg-gradient-to-r from-blue-700 to-cyan-600
+         text-white font-semibold shadow-lg hover:shadow-xl hover:opacity-95
+         active:scale-[0.97] transition-all duration-200;
+}
+
+.btn-ghost {
+  @apply px-4 py-2 rounded-xl text-blue-700 dark:text-blue-400 font-medium
+         hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200;
+}
+
+/* ─── Status Badges ─── */
+.badge-available {
+  @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
+         bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400;
+}
+.badge-busy {
+  @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
+         bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400;
+}
+.badge-offline {
+  @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
+         bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400;
+}
+.badge-emergency {
+  @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
+         bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400;
+}
+
+/* ─── Admin sidebar nav ─── */
+.nav-item {
+  @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150;
+}
+.nav-item-active {
+  @apply bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md;
+}
+.nav-item-inactive {
+  @apply text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800;
+}
+
+/* ─── Animations ─── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+@keyframes ripple {
+  0%   { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes floatIcon {
+  0%   { transform: translateY(0px)   rotate(-4deg) scale(1); }
+  50%  { transform: translateY(-18px) rotate( 4deg) scale(1.08); }
+  100% { transform: translateY( 8px)  rotate(-2deg) scale(0.95); }
+}
+@keyframes voiceBar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in   { animation: fadeIn   0.4s ease-out both; }
+.animate-slide-up  { animation: slideUp  0.35s ease-out both; }
+.animate-pulse-soft { animation: pulseSoft 2s ease-in-out infinite; }
+.mic-ripple::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: ripple 1.4s ease-out infinite;
+}
+
+/* ─── Voice mic active state ─── */
+.voice-active {
+  @apply relative bg-red-500 text-white;
+}
+.voice-active::after {
+  content: '';
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(239,68,68,0.5);
+  animation: ripple 1.2s ease-out infinite;
+}
+
+/* ─── Map container ─── */
+.map-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+/* ─── QR code ─── */
+.qr-wrapper {
+  @apply bg-white p-3 rounded-2xl shadow-md border border-gray-100 inline-block;
+}
+
+/* ─── Greeting overlay ─── */
+.greeting-overlay {
+  animation: fadeIn 0.5s ease-out both;
+}
+
+/* ─── Touch feedback ─── */
+@media (hover: none) {
+  .kiosk-card:active {
+    transform: scale(0.96);
+    background-color: rgba(30, 58, 138, 0.04);
+  }
+}
+

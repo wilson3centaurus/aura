@@ -1,0 +1,623 @@
+INTELLIGENT PATIENT SERVICE ROBOT SYSTEM
+Backup Project Proposal
+________________________________________
+Executive Summary
+This proposal presents an intelligent stationary service kiosk robot designed to revolutionize patient reception and queue management in Zimbabwean hospitals. The robot proactively engages patients waiting in queues, providing multilingual assistance, preliminary assessments, appointment scheduling, information services, and basic amenities—significantly reducing front desk congestion and wait times while improving patient experience.
+________________________________________
+Problem Statement
+Current Challenges at Zimbabwean Hospitals (e.g., Parirenyatwa Hospital, Mpilo Central Hospital, Sally Mugabe Central Hospital)
+When patients arrive at public hospitals in Zimbabwe, they face significant challenges:
+Long Queue Times
+•	Patients wait 30 minutes to 2+ hours just to reach the front desk
+•	Only to discover they need to be redirected elsewhere
+•	Peak times (mornings, Mondays) see queues of 50-100+ patients
+•	Single front desk staff handling multiple responsibilities
+Language Barriers
+•	Staff may not speak all of Zimbabwe's 16 official languages
+•	Patients struggle to explain symptoms or needs
+•	Misunderstandings lead to incorrect referrals
+•	Elderly patients and rural visitors particularly affected
+Information Bottleneck
+•	Simple questions (doctor availability, fees, directions, visiting hours) require front desk assistance
+•	Complex inquiries delay everyone in queue
+•	Patients don't know which department they need
+•	No preliminary symptom assessment before seeing staff
+Resource Inefficiency
+•	Front desk staff overwhelmed with basic queries
+•	Medical professionals interrupted for directional questions
+•	Patients sent to wrong departments, creating multiple queues
+•	No triage happening during wait time
+
+Patient Frustration
+•	Lack of information while waiting
+•	Uncertainty about wait times
+•	No access to basic needs (water, tissue, directions to facilities)
+•	Poor experience leads to dissatisfaction with healthcare system
+________________________________________
+Proposed Solution
+An Intelligent Stationary Patient Service Robot that actively circulates through waiting areas, engaging patients in queues to provide:
+✅ Multilingual interface (all 16 Zimbabwean languages)
+✅ Preliminary symptom assessment and triage recommendations
+✅ Real-time doctor availability and appointment scheduling
+✅ Hospital information (fees, services, departments, visiting policies)
+✅ Navigation assistance (directions to departments, toilets, pharmacies)
+✅ Basic amenities (water, tissues, hand sanitizer dispensing)
+✅ Patient admission inquiries (check on admitted relatives)
+✅ Medication availability checking
+✅ Queue management (virtual queue tickets, estimated wait times)
+________________________________________
+System Architecture
+1. Stationary Robot Platform
+Physical Design Characteristics:
+•	Height: 140-160cm (eye level for seated and standing patients)
+•	Base: Stable, wide base (60-70cm diameter) for safety
+•	Design: Friendly, approachable appearance (healthcare-themed colors)
+•	Touchscreen: Large 15-17 inch display at adjustable height
+•	Audio: Speakers for voice announcements and multilingual responses
+•	Dispensing Compartments: For water cups, tissues, hand sanitizer
+•	Emergency Button: Visible stop button for safety
+Mobility Features:
+•	Autonomous navigation through waiting areas
+•	Differential drive or omnidirectional wheels
+•	Slow, safe speed (0.3-0.5 m/s in crowded areas)
+•	Approaches patients respectfully, maintains appropriate distance
+•	Returns to charging dock when battery low
+2. Interactive Kiosk Interface
+Touchscreen Interface Design:
+
+Home Screen (Multi-language Welcome)
+┌─────────────────────────────────────┐
+│   Welcome to [Hospital Name]        │
+│   Mauya ku / Siyakwamukela ku       │
+│                                     │
+│   [Icon] Shona                      │
+│   [Icon] Ndebele                    │
+│   [Icon] English                    │
+│   [Icon] Tonga                      │
+│   [Icon] More Languages...          │
+│                                     │
+│   OR Speak to me in your language   │
+│   [🎤 Voice Input]                  │
+└─────────────────────────────────────┘
+Main Menu (After Language Selection)
+┌─────────────────────────────────────┐
+│  How can I help you today?          │
+│                                     │
+│  🏥 See a Doctor                    │
+│  💊 Get Medication                  │
+│  📋 Symptom Check                   │
+│  ℹ️  Hospital Information            │
+│  👤 Visit Someone Admitted          │
+│  🚻 Find Facilities (Toilet, etc.)  │
+│  💰 Medical Fees & Costs            │
+│  📞 Contact Departments             │
+│                                     │
+│  [🎤 Ask Me Anything]               │
+└─────────────────────────────────────┘
+Supported Languages (16 Official Languages of Zimbabwe):
+ 
+1.	Shona
+2.	Ndebele
+3.	English
+4.	Tonga
+5.	Chibarwe
+6.	Kalanga
+7.	Koisan
+8.	Nambya
+9.	Ndau
+10.	Shangani
+11.	Sotho
+12.	Venda
+13.	Xhosa
+14.	Chewa
+15.	Tswana
+16.	Sign Language (visual interface adaptation)
+ 
+
+3. Core Functionalities
+A. Doctor Availability & Appointment Scheduling
+Features:
+•	Real-time doctor schedule integration
+•	Shows available doctors by specialty
+•	Current patient load and estimated wait time
+•	Books appointments or provides queue ticket
+•	Notifies patient when doctor available
+User Interaction Example:
+Patient: "I need to see Dr. Munesuishe"
+
+Robot Response:
+┌─────────────────────────────────────┐
+│  Dr. Mune  - Provincial Practitioner   │
+│                                     │
+│  Status: ⚠️ Currently with Patient  │
+│  Queue Position: 3 patients ahead   │
+│  Estimated Wait: 35-45 minutes      │
+│                                     │
+│  Options:                           │
+│  ✅ Join Queue (Get Ticket #47)     │
+│  📅 Schedule Later Appointment      │
+│  👨‍⚕️ See Available Doctor Now        │
+│     (Dr. Natie - 5 min wait)        │
+│                                     │
+│  Location: Block C, Room 12         │
+│  [Show Directions]                  │
+└─────────────────────────────────────┘
+B. Preliminary Symptom Assessment
+Intelligent Triage System:
+•	Patient selects symptoms from categorized list
+•	AI-powered assessment suggests appropriate department
+•	Provides urgency rating (Emergency/Urgent/Routine)
+•	Educational information about possible conditions
+•	Disclaimer: "This is not a diagnosis. Please consult a doctor."
+Assessment Flow:
+Step 1: Main Complaint
+┌─────────────────────────────────────┐
+│  What brings you to the hospital?   │
+│                                     │
+│  🤒 Fever/High Temperature          │
+│  🤕 Pain (Head, Chest, Stomach...)  │
+│  🤧 Cold/Flu Symptoms               │
+│  🩹 Injury/Wound                    │
+│  💊 Chronic Condition Follow-up     │
+│  🤰 Maternity/Pregnancy Related     │
+│  👶 Child Health Issue              │
+│  📋 Other...                        │
+└─────────────────────────────────────┘
+
+Step 2: Detailed Symptoms (Example: Selected "Pain")
+┌─────────────────────────────────────┐
+│  Where is the pain located?         │
+│  [Body Diagram - Touch to Select]   │
+│                                     │
+│  How severe? (1-10 scale)           │
+│  [Slider: 😊 1 ----●---- 10 😫]     │
+│                                     │
+│  How long have you had this?        │
+│  ⏰ Today  📅 Few Days  📆 Weeks    │
+│                                     │
+│  Additional symptoms:               │
+│  □ Fever  □ Nausea  □ Dizziness    │
+│  □ Difficulty Breathing             │
+└─────────────────────────────────────┘
+
+Step 3: Recommendation
+┌─────────────────────────────────────┐
+│  ⚕️ Assessment Results              │
+│                                     │
+│  Urgency: 🟡 MODERATE               │
+│                                     │
+│  Recommended: Provincial Practitioner  │
+│  or Internal Medicine               │
+│                                     │
+│  Available Doctors:                 │
+│  • Dr. Moyo (GP) - Available now   │
+│  • Dr. Chikwanha (Internal Med)    │
+│    Available in 20 min              │
+│                                     │
+│  [Get Queue Ticket]                 │
+│  [More Information]                 │
+│                                     │
+│  ⚠️ If symptoms worsen, go to      │
+│     Emergency immediately           │
+└─────────────────────────────────────┘
+Emergency Detection:
+•	Chest pain + breathing difficulty → Direct to Emergency
+•	Severe bleeding → Immediate alert to staff + Emergency
+•	High fever in children → Fast-track to pediatrics
+•	Signs of stroke → Emergency with staff alert
+C. Medication Availability Check
+Features:
+•	Real-time pharmacy inventory integration
+•	Shows if medication in stock
+•	Provides alternatives if unavailable
+•	Displays approximate costs
+•	Indicates if prescription required
+Example Interaction:
+Patient: "Do you have paracetamol?"
+
+Robot Response:
+┌─────────────────────────────────────┐
+│  💊 Medication Search: Paracetamol  │
+│                                     │
+│  ✅ IN STOCK                        │
+│                                     │
+│  Available Forms:                   │
+│  • Tablets 500mg - $0.50/pack      │
+│  • Syrup 120mg/5ml - $2.00         │
+│                                     │
+│  📋 Prescription: Not Required      │
+│                                     │
+│  Location: Main Pharmacy            │
+│  Ground Floor, East Wing            │
+│  [Show Directions]                  │
+│                                     │
+│  Hours: Mon-Fri 8AM-5PM             │
+└─────────────────────────────────────┘
+D. Hospital Information Service
+Comprehensive Information Database:
+•	Department locations and services
+•	Medical fees and payment options
+•	Visiting hours and policies
+•	Available specialists
+•	Medical aid acceptance
+•	Emergency procedures
+•	Parking information
+•	Café/food services
+Example Queries Handled:
+Query 1: "How much does an X-ray cost?"
+┌─────────────────────────────────────┐
+│  💰 X-Ray Services Pricing          │
+│                                     │
+│  Standard X-Ray:                    │
+│  • Single view: $15                 │
+│  • Multiple views: $25-40           │
+│                                     │
+│  Specialized X-Rays:                │
+│  • Dental: $20                      │
+│  • Chest: $18                       │
+│                                     │
+│  📋 Requirements:                   │
+│  • Doctor's referral required       │
+│                                     │
+│  💳 Payment Methods:                │
+│  • Cash, EcoCash, Medical Aid      │
+│                                     │
+│  Location: Radiology Department     │
+│  [Show Directions]                  │
+└─────────────────────────────────────┘
+Query 2: "What are visiting hours?"
+┌─────────────────────────────────────┐
+│  👥 Visiting Hours Policy           │
+│                                     │
+│  Provincial Wards:                     │
+│  • Mon-Fri: 2PM - 4PM              │
+│  • Weekends: 10AM - 12PM, 2PM-4PM  │
+│                                     │
+│  ICU/Critical Care:                 │
+│  • 10AM - 11AM, 5PM - 6PM          │
+│  • Maximum 2 visitors at a time     │
+│                                     │
+│  Maternity Ward:                    │
+│  • Partners: Anytime               │
+│  • Other visitors: 2PM - 4PM       │
+│                                     │
+│  Children's Ward:                   │
+│  • Parents: 24/7 access            │
+│  • Others: 2PM - 4PM               │
+└─────────────────────────────────────┘
+E. Patient Admission Inquiries
+Features:
+•	Search admitted patients by name/ID
+•	Shows ward location and room number
+•	Displays visiting permissions
+•	Privacy protection (may require relationship verification)
+•	Provides directions to ward
+Example:
+Patient: "I'm looking for my mother, Mai Sedze"
+
+Robot Response:
+┌─────────────────────────────────────┐
+│  🔍 Patient Search                  │
+│                                     │
+│  For privacy, please verify:        │
+│  What is your relationship?         │
+│  □ Spouse  □ Child  □ Parent       │
+│  □ Sibling  □ Other Family         │
+│                                     │
+│  Patient's Date of Birth (if known) │
+│  [Input Field]                      │
+└─────────────────────────────────────┘
+
+After Verification:
+┌─────────────────────────────────────┐
+│  Patient Found: Mai Sedze           │
+│                                     │
+│  Ward: Female Medical Ward B        │
+│  Room: 204, Bed 3                   │
+│  Building: Main Block, 2nd Floor    │
+│                                     │
+│  Visiting Status: ✅ Visitors Allowed│
+│  Current Visiting Hours: 2PM - 4PM  │
+│  Next Visiting: Today at 2PM        │
+│                                     │
+│  [Show Directions to Ward]          │
+│  [Save to My Phone]                 │
+└─────────────────────────────────────┘
+F. Navigation & Wayfinding
+Interactive Hospital Map:
+•	Turn-by-turn directions
+•	Estimated walking time
+•	Accessibility routes (wheelchair, elevator)
+•	Visual landmarks
+•	"Follow me" option (robot guides patient)
+Common Destinations:
+•	Toilets/Restrooms
+•	Pharmacy
+•	Laboratory
+•	X-Ray/Radiology
+•	Maternity Ward
+•	Emergency Department
+•	Cafeteria
+•	ATM/Payment Point
+•	Parking Areas
+•	Exit
+Example:
+Patient: "Where is the toilet?"
+
+Robot Response:
+┌─────────────────────────────────────┐
+│  🚻 Nearest Restroom                │
+│                                     │
+│  📍 30 meters away (1 minute walk)  │
+│                                     │
+│  Directions:                        │
+│  1. Continue straight ahead         │
+│  2. Turn right at the water cooler  │
+│  3. Toilets on your left            │
+│                                     │
+│  ♿ Accessible toilet available     │
+│                                     │
+│  [Show on Map]                      │
+│  [Guide Me There] ← Robot leads     │
+└─────────────────────────────────────┘
+G. Basic Amenities Dispensing
+Built-in Dispensers:
+1.	Water Dispenser
+o	Disposable cups provided
+o	Filtered, clean drinking water
+o	Instructions displayed on screen
+o	Refillable reservoir
+2.	Tissue Dispenser
+o	Individual tissue packets for crying patients
+o	Hygienic dispensing
+o	Free for all patients
+3.	Hand Sanitizer Dispenser
+o	Touchless automatic dispenser
+o	70% alcohol-based sanitizer
+o	Promotes infection control
+4.	Information Brochures
+o	Health education materials
+o	Hospital services information
+o	Common condition pamphlets
+Usage Interface:
+┌─────────────────────────────────────┐
+│  🎁 Need Supplies?                  │
+│                                     │
+│  💧 Water (Disposable Cup)          │
+│     [Press to Dispense]             │
+│                                     │
+│  🧻 Tissues (1 Packet)              │
+│     [Press to Dispense]             │
+│                                     │
+│  🧴 Hand Sanitizer                  │
+│     [Wave hand under sensor]        │
+│                                     │
+│  📄 Health Information Brochures    │
+│     [Select Topic]                  │
+└─────────────────────────────────────┘
+H. Multilingual Voice & Text Interaction
+Natural Language Processing:
+•	Understands questions in 16 languages
+•	Text-to-speech in selected language
+•	Speech recognition for voice input
+•	Handles colloquialisms and local expressions
+•	Context-aware conversations
+Example Conversations:
+In Shona:
+Patient (speaking): "Ndinoda kuona chiremba wemwoyo"
+(I want to see a heart doctor)
+
+Robot (speaking + displaying):
+"Ndakanzwa. Munoda kuona chiremba 
+weCardiologist. Chiremba watinawo:
+Dr. Ncube - Aripo iye zvino
+Dr. Mlambo - Achauya pa 2PM"
+
+(I understand. You want to see a 
+Cardiologist. We have:
+Dr. Ncube - Available now
+Dr. Mlambo - Will be here at 2PM)
+In Ndebele:
+Patient: "Ngifuna imithi yesihloko"
+(I want headache medicine)
+
+Robot: "Kulungile. Imithi yesihloko 
+ikhona epharmacy. Ingabiza imali 
+engaba ngu$2 kuya ku$5.
+Pharmacy iseGround Floor.
+Ngingakutshengisa indlela?"
+
+(Okay. Headache medicine is available 
+at the pharmacy. It costs between 
+$2 to $5. The pharmacy is on the 
+Ground Floor. Shall I show you the way?)
+4. Integration with Hospital Systems
+System Connections:
+1.	Hospital Information System (HIS)
+o	Patient registration database
+o	Admission records
+o	Appointment scheduling
+o	Medical records (limited access for symptoms matching)
+2.	Doctor Scheduling System
+o	Real-time doctor availability
+o	Appointment calendars
+o	Queue management
+o	Specialty directories
+3.	Pharmacy Inventory System
+o	Real-time stock levels
+o	Medication pricing
+o	Alternative drug suggestions
+o	Prescription requirements
+4.	Financial Management System
+o	Service fees and costs
+o	Payment options
+o	Medical aid verification
+o	Billing information
+5.	Facility Management
+o	Department locations
+o	Room availability
+o	Operating hours
+o	Maintenance status
+Security & Privacy:
+•	Encrypted connections
+•	HIPAA/POPIA-compliant data handling
+•	No storage of patient information on robot
+•	Audit logs for all interactions
+•	Staff override capabilities
+________________________________________
+Technical Specifications
+Robot Hardware Components
+Component	Specification	Purpose
+Base Platform	Robot main stationary base	Robot Housing
+Touch Display	15.6” capacitive touchscreen	User interface
+Computer	Intel NUC i5 or Raspberry Pi 4 or Jeston Nano	Main control and AI processing
+LIDAR Sensor	RPLIDAR A1/A2	Navigation & obstacle avoidance
+Depth Camera	Intel RealSense D435	People detection, safety
+Speakers	Stereo speakers with amplifier	Voice output
+Microphone Array	4-mic array for voice input	Speech recognition
+Battery System	48V 30Ah Li-ion	Power supply (8-12hr)
+Water Dispenser	5L reservoir with pump	Dispensing water
+Tissue Dispenser	Mechanical dispenser	Small Tissue rolls for wiping tears
+Sanitizer Dispenser	Touchless automatic	Hand sanitizer
+LED Indicators	RGB LEDs	Status display
+Chassis & Enclosure	Custom fabricated body	Housing all components
+
+
+Software Components
+Component	Technology Stack	Purpose
+User Interface	React.js + Electron, Material-UI	Touchscreen kiosk interface
+Speech Recognition	Google Cloud Speech-to-Text API, Multilingual	Voice input processing
+Text-to-Speech	Google Cloud Text-to-Speech, 16 languages	Voice responses
+Natural Language Processing	DialogFlow or Rasa, Custom training	Understanding queries
+Navigation Software	ROS 2 Navigation Stack	Autonomous movement
+Hospital System Integration	REST APIs, HL7/FHIR standards	Data connectivity
+Symptom Assessment AI	TensorFlow, Medical knowledge base	Triage recommendations
+Database System	PostgreSQL or MongoDB	Local caching
+Admin Dashboard	Web-based management portal	Robot monitoring & config
+Security & Authentication	OAuth 2.0, Encryption	Data protection
+________________________________________
+Expected Benefits & Impact
+Quantitative Benefits
+Queue Reduction:
+•	40-60% reduction in front desk queue length
+•	Average wait time reduced from 45 minutes to 15-20 minutes
+•	Front desk handles 50% fewer basic inquiries
+Efficiency Gains:
+•	Front desk staff freed to handle complex cases
+•	100-200 patients served per robot per day
+•	30-40% increase in patient throughput
+•	Triage accuracy: 85-90% appropriate department referrals
+Cost Savings:
+•	Equivalent to 2-3 front desk staff positions
+•	Reduced misdirection saves 20+ staff hours/week
+•	Better resource allocation improves hospital efficiency
+•	ROI within 18-24 months
+Qualitative Benefits
+Patient Experience:
+•	Immediate assistance upon arrival
+•	No intimidation factor (vs. speaking to staff)
+•	Language comfort in mother tongue
+•	Privacy for sensitive questions
+•	Access to basic needs while waiting
+Healthcare Access:
+•	Language barriers eliminated
+•	Rural patients feel more comfortable
+•	Elderly receive patient assistance
+•	Health education reaches more people
+•	Reduces inequalities in healthcare access
+Staff Benefits:
+•	Reduced stress from overwhelming queues
+•	Focus on complex patient needs
+•	Fewer repetitive questions
+•	Better work environment
+Public Health Impact:
+•	Preliminary screening reduces inappropriate visits
+•	Health education during wait time
+•	Promotes preventive care awareness
+•	Better disease surveillance (aggregated symptom data)
+________________________________________
+Use Case Scenarios
+Scenario 1: Elderly Patient with Limited English
+Profile: Gogo Ncube, 68 years old, speaks only Ndebele, experiencing chest pain
+Robot Interaction:
+1.	Robot approaches: "Sawubona Gogo, ngingakusiza?" (Hello grandmother, can I help you?)
+2.	Gogo explains symptoms in Ndebele via voice
+3.	Robot recognizes urgency keywords: chest pain + age
+4.	IMMEDIATE ACTION: Robot displays in large text and speaks: 
+o	"Lokhu kungaba yingozi. Ngizakubiza umuntu ozakunceda." (This could be serious. I'll call someone to help you.)
+5.	Robot sends alert to emergency staff with location
+6.	Staff arrives within 2 minutes
+7.	Robot provides Gogo with water while waiting
+8.	Emergency staff take her to emergency department
+Outcome: Potential cardiac event identified and addressed immediately, possibly saving life.
+Scenario 2: Young Mother with Sick Child
+Profile: Mai Takudzwa, 25, child with fever, doesn't know which doctor to see
+Robot Interaction:
+1.	Robot: "Mangwanani, ndingakubatsira sei?" (Good morning, how can I help?)
+2.	Mother selects "Child is sick" in Shona
+3.	Symptom check interface: 
+o	Age: 2 years
+o	Symptoms: Fever (39°C), cough, won't eat
+o	Duration: 2 days
+4.	Robot assessment: "Mwana wenyu anofanira kuona chiremba wevana" (Your child should see a pediatrician)
+5.	Shows available pediatricians: 
+o	Dr. Mutasa - Available now (5 min wait)
+o	Dr. Zhou - Available at 11 AM
+6.	Mother selects Dr. Mutasa
+7.	Robot prints queue ticket #12 and shows directions
+8.	Provides estimated 15-minute wait
+9.	Offers water and information on managing fever
+Outcome: Quick appropriate referral, reduced anxiety, informed parent.
+Scenario 3: Visitor Looking for Admitted Relative
+Profile: Mr. Sedze, visiting from Mutare, looking for brother admitted yesterday
+Robot Interaction:
+1.	Mr. Sedze selects "Visit Someone Admitted"
+2.	Enters brother's name: "James Sedze"
+3.	Robot finds patient, requests relationship verification
+4.	Confirms visiting hours: "Visiting hours are 2PM-4PM (Currently 10AM)"
+5.	Provides ward location: Male Surgical Ward, Room 305
+6.	Shows map and directions
+7.	Informs about visitor requirements (ID needed)
+8.	Offers to save information to phone via QR code
+9.	Directs to visitor registration desk
+Outcome: Visitor informed, knows where to go, returns at correct time.
+Scenario 4: Patient Inquiring About Medication
+Profile: Mrs. Moyo needs to refill blood pressure medication
+Robot Interaction:
+1.	Selects "Get Medication"
+2.	Speaks medication name: "Amlodipine"
+3.	Robot checks pharmacy inventory: "In stock - $8 for 30 tablets"
+4.	Asks: "Do you have a prescription?"
+5.	Mrs. Moyo: "No, I need to see doctor first"
+6.	Robot provides options: 
+o	See GP for prescription (shows available doctors)
+o	Book appointment for later
+7.	Shows directions to GP consulting rooms
+8.	Provides queue ticket
+Outcome: Clear pathway from inquiry to medication, time saved.
+Scenario 5: Provincial Hospital Information
+Profile: Mr. Zhou needs to know about X-ray costs and process
+Robot Interaction:
+1.	Asks: "How much does an X-ray cost?"
+2.	Robot displays detailed pricing: 
+o	Chest X-ray: $18
+o	Bone X-ray: $15-25
+o	Dental X-ray: $20
+3.	Explains requirements: 
+o	Doctor's referral needed
+o	Payment options: Cash, EcoCash, medical aid
+4.	Shows location of radiology department
+5.	Provides operating hours
+6.	Shows available doctors who can provide referrals
+Outcome: Complete information provided, patient knows next steps.
+________________________________________
+
+Future Improvements
+•	Integration with AI diagnosis systems for symptom analysis.
+•	Use of facial recognition for returning patients.
+•	Integration with stationary app for remote check-in.
+•	Support for robot fleet coordination in large hospitals.
+
+The Intelligent Patient Service Robot System represents the next step in healthcare automation for Zimbabwe. By combining robotics, artificial intelligence, and natural language processing, it can dramatically improve hospital service flow, patient satisfaction, and operational efficiency.
+This project provides a feasible, innovative, and scalable solution to one of Zimbabwe’s most persistent healthcare bottlenecks — front desk congestion.
+

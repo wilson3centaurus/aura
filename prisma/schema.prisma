@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   // ADMIN, DOCTOR
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  doctor    Doctor?
+}
+
+model Doctor {
+  id           String        @id @default(cuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id])
+  specialty    String
+  departmentId String
+  department   Department    @relation(fields: [departmentId], references: [id])
+  status       String        @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE, ON_BREAK
+  roomNumber   String?
+  phone        String?
+  appointments Appointment[]
+  queueEntries QueueEntry[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Department {
+  id                String       @id @default(cuid())
+  name              String       @unique
+  location          String
+  floor             String
+  description       String?
+  openTime          String       @default("08:00")
+  closeTime         String       @default("17:00")
+  latitude          Float?
+  longitude         Float?
+  writtenDirections String?
+  doctors           Doctor[]
+  queueEntries      QueueEntry[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model LocationPin {
+  id                String   @id @default(cuid())
+  name              String
+  category          String
+  description       String?
+  latitude          Float
+  longitude         Float
+  writtenDirections String?
+  floor             String   @default("Ground Floor")
+  isActive          Boolean  @default(true)
+  iconName          String   @default("location")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  patientName String
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+  status      String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  scheduledAt DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model QueueEntry {
+  id           String     @id @default(cuid())
+  ticketNumber Int
+  patientName  String
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  doctorId     String?
+  doctor       Doctor?    @relation(fields: [doctorId], references: [id])
+  status       String     @default("WAITING") // WAITING, CALLED, IN_PROGRESS, COMPLETED
+  priority     String     @default("ROUTINE") // EMERGENCY, URGENT, ROUTINE
+  symptoms     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Medication {
+  id                   String   @id @default(cuid())
+  name                 String
+  form                 String
+  dosage               String
+  price                Float
+  inStock              Boolean  @default(true)
+  quantity             Int      @default(0)
+  prescriptionRequired Boolean  @default(false)
+  category             String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Fee {
+  id          String   @id @default(cuid())
+  service     String
+  category    String
+  price       Float
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdmittedPatient {
+  id              String   @id @default(cuid())
+  name            String
+  dateOfBirth     String?
+  ward            String
+  room            String
+  bed             String
+  admissionDate   DateTime
+  status          String   @default("ADMITTED") // ADMITTED, DISCHARGED
+  visitorsAllowed Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model HospitalInfo {
+  id       String @id @default(cuid())
+  key      String @unique
+  value    String
+  category String
+}

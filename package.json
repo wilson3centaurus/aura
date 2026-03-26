@@ -1,0 +1,38 @@
+{
+  "name": "aura-hospital-robot",
+  "version": "1.0.0",
+  "description": "AURA - Artificial Universal Reception Assistant - Intelligent Hospital Service Robot",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000",
+    "seed": "npx tsx prisma/seed.ts",
+    "db:push": "npx prisma db push",
+    "db:studio": "npx prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@googlemaps/js-api-loader": "^2.0.2",
+    "@supabase/supabase-js": "^2.100.0",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.4.0",
+    "next": "^14.2.0",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-icons": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/google.maps": "^3.58.1",
+    "@types/node": "^20.14.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.5.0"
+  }
+}
