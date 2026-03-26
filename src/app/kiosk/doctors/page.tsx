@@ -9,7 +9,7 @@ interface Doctor {
   status: string
   room_number: string | null
   departmentId: string
-  user: { name: string }
+  user: { name: string; profile_image: string | null }
   department: { name: string }
   _count?: { queueEntries: number }
 }
@@ -134,7 +134,9 @@ export default function KioskDoctors() {
 
   // QR result screen
   if (bookingResult && bookingStep === 'qr') {
-    const trackUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/kiosk/track?qr=${bookingResult.qrCode}`
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : '')
+    const trackUrl = `${baseUrl}/kiosk/track?qr=${bookingResult.qrCode}`
     return (
       <div className="flex flex-col min-h-screen bg-white dark:bg-[#0a0a0a]">
         <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4 flex items-center gap-3">
@@ -209,11 +211,15 @@ export default function KioskDoctors() {
           </div>
         </header>
 
-        <main className="flex-1 p-5">
+        <main className="flex-1 p-5 overflow-y-auto">
           <div className="max-w-lg mx-auto">
             {/* Doctor info */}
             <div className="bg-gray-50 dark:bg-[#111] rounded-2xl p-4 mb-5 border border-gray-100 dark:border-[#222] flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-[#003d73]/10 flex items-center justify-center text-xl">👨‍⚕️</div>
+              <div className="w-12 h-12 rounded-xl bg-[#003d73]/10 flex items-center justify-center text-xl overflow-hidden">
+                {bookingDoctor.user.profile_image
+                  ? <img src={bookingDoctor.user.profile_image} alt={bookingDoctor.user.name} className="w-full h-full object-cover" />
+                  : '👨‍⚕️'}
+              </div>
               <div>
                 <p className="font-black text-gray-900 dark:text-white text-sm">{bookingDoctor.user.name}</p>
                 <p className="text-xs text-gray-500">{bookingDoctor.specialty} · {bookingDoctor.department.name}</p>
@@ -369,8 +375,10 @@ export default function KioskDoctors() {
               const canBook = doctor.status === 'AVAILABLE'
               return (
                 <div key={doctor.id} className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#003d73]/10 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/10 flex items-center justify-center text-xl flex-shrink-0">
-                    👨‍⚕️
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#003d73]/10 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/10 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+                    {doctor.user.profile_image
+                      ? <img src={doctor.user.profile_image} alt={doctor.user.name} className="w-full h-full object-cover" />
+                      : '👨‍⚕️'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">

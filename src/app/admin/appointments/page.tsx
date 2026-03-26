@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { MdSearch, MdRefresh, MdQrCode2 } from 'react-icons/md'
@@ -7,11 +7,10 @@ interface Appointment {
   id: string
   patient_name: string
   patient_phone: string | null
-  reason: string | null
+  symptoms: string | null
   status: string
   qr_code: string
-  date: string
-  time: string
+  scheduled_at: string | null
   decline_reason: string | null
   accepted_at: string | null
   created_at: string
@@ -23,12 +22,22 @@ interface Appointment {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
-  ACCEPTED: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
-  DECLINED: 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400',
+  PENDING:     'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
+  ACCEPTED:    'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
+  DECLINED:    'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400',
   IN_PROGRESS: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-  COMPLETED: 'bg-gray-100 text-gray-500 dark:bg-[#222] dark:text-gray-400',
-  CANCELLED: 'bg-gray-100 text-gray-400 dark:bg-[#222] dark:text-gray-500',
+  COMPLETED:   'bg-gray-100 text-gray-500 dark:bg-[#222] dark:text-gray-400',
+  CANCELLED:   'bg-gray-100 text-gray-400 dark:bg-[#222] dark:text-gray-500',
+}
+
+function fmtDate(iso: string | null) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-ZW', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function fmtTime(iso: string | null) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleTimeString('en-ZW', { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function AdminAppointments() {
@@ -56,7 +65,8 @@ export default function AdminAppointments() {
 
   const pending = appointments.filter(a => a.status === 'PENDING').length
   const today = appointments.filter(a => {
-    const d = new Date(a.date)
+    if (!a.scheduled_at) return false
+    const d = new Date(a.scheduled_at)
     const n = new Date()
     return d.toDateString() === n.toDateString()
   }).length
@@ -115,8 +125,8 @@ export default function AdminAppointments() {
                   <p className="text-[11px] text-gray-400">{apt.doctor?.specialty || ''}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-[13px] text-gray-600 dark:text-gray-400">{new Date(apt.date).toLocaleDateString()}</p>
-                  <p className="text-[11px] text-gray-400">{apt.time}</p>
+                  <p className="text-[13px] text-gray-600 dark:text-gray-400">{fmtDate(apt.scheduled_at)}</p>
+                  <p className="text-[11px] text-gray-400">{fmtTime(apt.scheduled_at)}</p>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${STATUS_COLORS[apt.status] || 'bg-gray-100 text-gray-500'}`}>
@@ -147,7 +157,7 @@ export default function AdminAppointments() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowQR(null)}>
             <div className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-6 w-80 text-center" onClick={e => e.stopPropagation()}>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{apt.patient_name}</h3>
-              <p className="text-[11px] text-gray-400 mb-4">{new Date(apt.date).toLocaleDateString()} at {apt.time}</p>
+              <p className="text-[11px] text-gray-400 mb-4">{fmtDate(apt.scheduled_at)} {fmtTime(apt.scheduled_at)}</p>
               <div className="bg-white p-4 rounded-xl inline-block mb-3">
                 <div className="w-40 h-40 bg-gray-100 dark:bg-gray-200 rounded-lg flex items-center justify-center">
                   <MdQrCode2 size={100} className="text-gray-900" />
