@@ -87,11 +87,6 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
         }
       } else {
         motionCount.current = 0
-        const idle = Date.now() - lastActive.current
-        if (idle > INACTIVITY_MS) {
-          setWasPresent(false)
-          if (pathname !== '/kiosk') router.push('/kiosk')
-        }
       }
     }
 

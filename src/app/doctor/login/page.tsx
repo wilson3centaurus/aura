@@ -97,13 +97,13 @@ export default function DoctorLogin() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Email (Username)</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Username</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                placeholder="doctor@mutareprovincial.co.zw"
+                placeholder="Enter your email address or username"
                 autoComplete="email"
                 className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
               />
@@ -112,7 +112,6 @@ export default function DoctorLogin() {
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
                 Password
-                <span className="ml-2 font-normal normal-case text-gray-400">(your ID number, lowercase)</span>
               </label>
               <div className="relative">
                 <input
@@ -120,6 +119,7 @@ export default function DoctorLogin() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
+                  placeholder="Enter your password"
                   autoComplete="current-password"
                   className="w-full px-4 py-3 pr-11 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                 />

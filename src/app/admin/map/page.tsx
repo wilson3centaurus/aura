@@ -26,8 +26,8 @@ interface PendingPin {
   lng: number
 }
 
-const HOSPITAL_LAT = parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LAT || '-18.9718')
-const HOSPITAL_LNG = parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LNG || '32.6703')
+const HOSPITAL_LAT = parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LAT || '-18.963803')
+const HOSPITAL_LNG = parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LNG || '32.663295')
 const MAPS_KEY     = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 
 const CATEGORIES = [
@@ -51,12 +51,13 @@ const CATEGORY_COLOR: Record<string, string> = Object.fromEntries(CATEGORIES.map
 const BLANK_FORM = { name: '', category: 'toilet', description: '', writtenDirections: '', floor: 'Ground Floor', iconName: 'location', lat: 0, lng: 0 }
 
 export default function AdminMapPage() {
-  const mapRef      = useRef<HTMLDivElement>(null)
-  const googleMap   = useRef<any>(null)
-  const markers     = useRef<Map<string, any>>(new Map())
-  const tempMarker  = useRef<any>(null)
-  const infoWindows = useRef<Map<string, any>>(new Map())
-  const placingRef  = useRef(false)
+  const mapRef         = useRef<HTMLDivElement>(null)
+  const googleMap      = useRef<any>(null)
+  const markers        = useRef<Map<string, any>>(new Map())
+  const tempMarker     = useRef<any>(null)
+  const infoWindows    = useRef<Map<string, any>>(new Map())
+  const placingRef     = useRef(false)
+  const repositionRef  = useRef(false)
 
   const [mapsLoaded, setMapsLoaded]     = useState(false)
   const [pins, setPins]                 = useState<LocationPin[]>([])
@@ -116,6 +117,17 @@ export default function AdminMapPage() {
           strokeWeight: 2,
         },
       })
+      if (repositionRef.current) {
+        // Repositioning an existing pin — just update lat/lng and re-show form
+        repositionRef.current = false
+        if (tempMarker.current) { tempMarker.current.setMap(null); tempMarker.current = null }
+        tempMarker.current = marker
+        setForm(f => ({ ...f, lat, lng }))
+        setPlacing(false)
+        gMap.getDiv().style.cursor = 'default'
+        return
+      }
+
       tempMarker.current = marker
       setPending({ lat, lng })
       setForm(f => ({ ...f, lat, lng }))
@@ -215,11 +227,18 @@ export default function AdminMapPage() {
     })
     setShowForm(true)
     setPlacing(false)
+    repositionRef.current = false
     // Pan to marker
     if (googleMap.current) {
       googleMap.current.panTo({ lat: pin.latitude, lng: pin.longitude })
       googleMap.current.setZoom(20)
     }
+  }
+
+  const startReposition = () => {
+    repositionRef.current = true
+    setPlacing(true)
+    if (googleMap.current) googleMap.current.getDiv().style.cursor = 'crosshair'
   }
 
   const savePin = async () => {
@@ -346,8 +365,19 @@ export default function AdminMapPage() {
                 <div className="space-y-3">
                   {/* Coordinates display */}
                   {(pending || editId) && (
-                    <div className="text-[11px] font-mono text-slate-400 dark:text-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg">
-                      {form.lat.toFixed(6)}, {form.lng.toFixed(6)}
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-lg gap-2">
+                      <span className="text-[11px] font-mono text-slate-400 dark:text-slate-600 truncate">
+                        {form.lat.toFixed(6)}, {form.lng.toFixed(6)}
+                      </span>
+                      {editId && (
+                        <button
+                          onClick={startReposition}
+                          disabled={placing}
+                          className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0 disabled:opacity-50"
+                        >
+                          {placing && repositionRef.current ? 'Click map…' : 'Reposition'}
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -382,7 +412,7 @@ export default function AdminMapPage() {
                       onChange={e => setForm(f => ({ ...f, floor: e.target.value }))}
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {['Ground Floor', 'First Floor', 'Second Floor', 'Basement', 'Outdoor / Grounds'].map(f => (
+                      {['Ground Floor', 'Outdoor / Grounds'].map(f => (
                         <option key={f} value={f}>{f}</option>
                       ))}
                     </select>

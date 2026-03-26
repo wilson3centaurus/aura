@@ -17,6 +17,13 @@ interface Department {
   _count?: { doctors: number }
 }
 
+interface Doctor {
+  id: string
+  specialty: string
+  department: { id: string; name: string } | null
+  user: { name: string; email: string }
+}
+
 const FLOORS = ['Ground Floor', '1st Floor', '2nd Floor', '3rd Floor', 'Basement']
 
 const DEPT_ICONS: Record<string, string> = {
@@ -61,8 +68,13 @@ const DEPT_COLORS: string[] = [
 
 export default function AdminDepartments() {
   const [departments, setDepartments] = useState<Department[]>([])
+  const [doctors, setDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editDept, setEditDept] = useState<Department | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', location: '', floor: 'Ground Floor', description: '', openTime: '08:00', closeTime: '17:00', writtenDirections: '' })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [assigningDoctor, setAssigningDoctor] = useState<string | null>(null)
   const [form, setForm] = useState({
     name: '', location: '', floor: 'Ground Floor',
     description: '', openTime: '08:00', closeTime: '17:00',
@@ -77,12 +89,64 @@ export default function AdminDepartments() {
   const markerRef = useRef<google.maps.Marker | null>(null)
 
   const loadData = async () => {
-    const data = await fetch('/api/departments').then(r => r.json())
+    const [data, docsData] = await Promise.all([
+      fetch('/api/departments').then(r => r.json()),
+      fetch('/api/doctors').then(r => r.json()),
+    ])
     setDepartments(Array.isArray(data) ? data : [])
+    setDoctors(Array.isArray(docsData) ? docsData : [])
     setLoading(false)
   }
 
   useEffect(() => { loadData() }, [])
+
+  const openEdit = (dept: Department) => {
+    setEditDept(dept)
+    setEditForm({
+      name: dept.name,
+      location: dept.location,
+      floor: dept.floor,
+      description: dept.description || '',
+      openTime: dept.open_time,
+      closeTime: dept.close_time,
+      writtenDirections: dept.written_directions || '',
+    })
+  }
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editDept) return
+    setSavingEdit(true)
+    try {
+      await fetch(`/api/departments/${editDept.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      })
+      setEditDept(null)
+      loadData()
+    } catch {}
+    setSavingEdit(false)
+  }
+
+  const assignDoctor = async (doctorId: string, departmentId: string | null) => {
+    setAssigningDoctor(doctorId)
+    try {
+      await fetch(`/api/doctors/${doctorId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ departmentId: departmentId || '' }),
+      })
+      await loadData()
+      // Refresh editDept with updated doctor count
+      if (editDept) {
+        const updated = await fetch('/api/departments').then(r => r.json())
+        const found = (Array.isArray(updated) ? updated : []).find((d: Department) => d.id === editDept.id)
+        if (found) setEditDept(found)
+      }
+    } catch {}
+    setAssigningDoctor(null)
+  }
 
   // Load Google Maps when form opens
   useEffect(() => {
@@ -273,7 +337,7 @@ export default function AdminDepartments() {
                   <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">{dept._count?.doctors || 0}</span>
                   <span className="text-[11px] text-gray-400">doctor{(dept._count?.doctors || 0) !== 1 ? 's' : ''}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {hasCoords ? (
                     <span className="text-[10px] px-2 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold">
                       📍 Mapped
@@ -283,6 +347,12 @@ export default function AdminDepartments() {
                       No map pin
                     </span>
                   )}
+                  <button
+                    onClick={() => openEdit(dept)}
+                    className="text-[10px] px-2 py-1 rounded-lg bg-[#003d73]/10 hover:bg-[#003d73]/20 text-[#003d73] dark:text-blue-400 font-bold transition-colors"
+                  >
+                    Edit
+                  </button>
                 </div>
               </div>
             </div>
@@ -294,6 +364,99 @@ export default function AdminDepartments() {
         <div className="flex flex-col items-center justify-center py-16 text-gray-400">
           <span className="text-4xl mb-3">🏥</span>
           <p className="text-sm font-semibold">No departments found</p>
+        </div>
+      )}
+
+      {/* Edit Department Modal */}
+      {editDept && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#222] sticky top-0 bg-white dark:bg-[#141414] z-10">
+              <div>
+                <h2 className="text-sm font-black text-gray-900 dark:text-white">Edit Department</h2>
+                <p className="text-[11px] text-gray-400 mt-0.5">{editDept.name}</p>
+              </div>
+              <button type="button" onClick={() => setEditDept(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222] transition-colors">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <form onSubmit={saveEdit} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <input placeholder="Department Name *" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} required
+                  className="col-span-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                <input placeholder="Location (e.g. Block A)" value={editForm.location} onChange={e => setEditForm({ ...editForm, location: e.target.value })} required
+                  className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                <select value={editForm.floor} onChange={e => setEditForm({ ...editForm, floor: e.target.value })}
+                  className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]">
+                  {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-gray-400 uppercase font-bold">Opens</label>
+                    <input type="time" value={editForm.openTime} onChange={e => setEditForm({ ...editForm, openTime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] text-gray-400 uppercase font-bold">Closes</label>
+                    <input type="time" value={editForm.closeTime} onChange={e => setEditForm({ ...editForm, closeTime: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                  </div>
+                </div>
+                <textarea placeholder="Description (optional)" value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={2}
+                  className="col-span-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none" />
+                <textarea placeholder="Written directions (optional)" value={editForm.writtenDirections} onChange={e => setEditForm({ ...editForm, writtenDirections: e.target.value })} rows={2}
+                  className="col-span-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none" />
+              </div>
+
+              <button type="submit" disabled={savingEdit}
+                className="w-full py-3 rounded-xl bg-[#003d73] hover:bg-[#002d57] text-white text-sm font-black transition-colors shadow-md shadow-blue-900/20 disabled:opacity-50">
+                {savingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </form>
+
+            {/* Assign Doctors Section */}
+            <div className="px-5 pb-5 space-y-3">
+              <div className="border-t border-gray-100 dark:border-[#222] pt-4">
+                <h3 className="text-xs font-black text-gray-900 dark:text-white mb-3">Assign Doctors to {editDept.name}</h3>
+                <div className="space-y-2">
+                  {doctors.map(doc => {
+                    const inThisDept = doc.department?.id === editDept.id
+                    const inOtherDept = doc.department && doc.department.id !== editDept.id
+                    const isAssigning = assigningDoctor === doc.id
+                    return (
+                      <div key={doc.id} className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-100 dark:border-[#1e1e1e]">
+                        <div>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">{doc.user.name}</p>
+                          <p className="text-[10px] text-gray-400">{doc.specialty}{inOtherDept ? ` · ${doc.department?.name}` : ''}</p>
+                        </div>
+                        {inThisDept ? (
+                          <button
+                            onClick={() => assignDoctor(doc.id, null)}
+                            disabled={isAssigning}
+                            className="text-[10px] px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+                          >
+                            {isAssigning ? '...' : '✓ Assigned'}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => assignDoctor(doc.id, editDept.id)}
+                            disabled={isAssigning}
+                            className="text-[10px] px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-[#222] text-gray-500 dark:text-gray-400 font-bold hover:bg-[#003d73]/10 hover:text-[#003d73] dark:hover:text-blue-400 transition-colors disabled:opacity-50"
+                          >
+                            {isAssigning ? '...' : 'Assign'}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {doctors.length === 0 && (
+                    <p className="text-xs text-gray-400 text-center py-4">No doctors registered yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

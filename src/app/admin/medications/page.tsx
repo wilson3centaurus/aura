@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 
@@ -18,23 +18,23 @@ const CATEGORIES = ['Pain Relief', 'Antibiotics', 'Antimalarial', 'Antiretrovira
 const FORMS = ['Tablets', 'Capsules', 'Syrup', 'Injection', 'Cream', 'Drops', 'Inhaler', 'Suppository', 'Patch']
 
 const CAT_ICONS: Record<string, string> = {
-  'Pain Relief': 'ðŸ©¹',
-  'Antibiotics': 'ðŸ¦ ',
-  'Antimalarial': 'ðŸ¦Ÿ',
-  'Antiretroviral': 'ðŸ’Š',
-  'Cardiovascular': 'â¤ï¸',
-  'Diabetes': 'ðŸ©¸',
-  'Respiratory': 'ðŸŒ¬ï¸',
-  'Gastrointestinal': 'ðŸ«€',
-  'Vitamins & Supplements': 'ðŸŒ¿',
-  'Mental Health': 'ðŸ§ ',
-  'Dermatology': 'ðŸ©¹',
-  'Other': 'ðŸ’Š',
+  'Pain Relief': '🤭',
+  'Antibiotics': '🦠',
+  'Antimalarial': '🦟',
+  'Antiretroviral': '💊',
+  'Cardiovascular': '❤️',
+  'Diabetes': '🩸',
+  'Respiratory': '🌬️',
+  'Gastrointestinal': '🫀',
+  'Vitamins & Supplements': '🌿',
+  'Mental Health': '🧠',
+  'Dermatology': '🩹',
+  'Other': '💊',
 }
 
 const FORM_ICONS: Record<string, string> = {
-  'Tablets': 'ðŸ’Š', 'Capsules': 'ðŸ’Š', 'Syrup': 'ðŸ§´', 'Injection': 'ðŸ’‰',
-  'Cream': 'ðŸ§´', 'Drops': 'ðŸ’§', 'Inhaler': 'ðŸŒ¬ï¸', 'Suppository': 'ðŸ’Š', 'Patch': 'ðŸ©¹',
+  'Tablets': '💊', 'Capsules': '💊', 'Syrup': '🧴', 'Injection': '💉',
+  'Cream': '🧴', 'Drops': '💧', 'Inhaler': '🌬️', 'Suppository': '💊', 'Patch': '🩹',
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -56,6 +56,7 @@ export default function AdminMedications() {
   const [medications, setMedications] = useState<Medication[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState('')
   const [form, setForm] = useState({ name: '', form: 'Tablets', dosage: '', price: '', quantity: '', prescriptionRequired: false, category: '' })
@@ -75,23 +76,60 @@ export default function AdminMedications() {
     return true
   })
 
+  const openEdit = (med: Medication) => {
+    setEditId(med.id)
+    setForm({
+      name: med.name,
+      form: med.form,
+      dosage: med.dosage,
+      price: med.price.toString(),
+      quantity: med.quantity.toString(),
+      prescriptionRequired: med.prescription_required,
+      category: med.category || '',
+    })
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const cancelForm = () => {
+    setShowForm(false)
+    setEditId(null)
+    setForm({ name: '', form: 'Tablets', dosage: '', price: '', quantity: '', prescriptionRequired: false, category: '' })
+  }
+
   const addMedication = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await fetch('/api/medications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          price: parseFloat(form.price),
-          quantity: parseInt(form.quantity) || 0,
-          in_stock: parseInt(form.quantity) > 0,
-          prescription_required: form.prescriptionRequired,
-        }),
-      })
-      setForm({ name: '', form: 'Tablets', dosage: '', price: '', quantity: '', prescriptionRequired: false, category: '' })
-      setShowForm(false)
+      if (editId) {
+        await fetch(`/api/medications/${editId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: form.name,
+            form: form.form,
+            dosage: form.dosage,
+            price: parseFloat(form.price),
+            quantity: parseInt(form.quantity) || 0,
+            in_stock: parseInt(form.quantity) > 0,
+            prescription_required: form.prescriptionRequired,
+            category: form.category || null,
+          }),
+        })
+      } else {
+        await fetch('/api/medications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...form,
+            price: parseFloat(form.price),
+            quantity: parseInt(form.quantity) || 0,
+            in_stock: parseInt(form.quantity) > 0,
+            prescription_required: form.prescriptionRequired,
+          }),
+        })
+      }
+      cancelForm()
       loadData()
     } catch {}
     setSaving(false)
@@ -103,6 +141,11 @@ export default function AdminMedications() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ in_stock: !med.in_stock }),
     })
+    loadData()
+  }
+
+  const deleteMedication = async (id: string) => {
+    await fetch(`/api/medications/${id}`, { method: 'DELETE' })
     loadData()
   }
 
@@ -121,10 +164,10 @@ export default function AdminMedications() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-black text-gray-900 dark:text-white">Medications</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{medications.length} total Â· {inStock} in stock Â· {outOfStock} out of stock</p>
+          <p className="text-xs text-gray-500 mt-0.5">{medications.length} total · {inStock} in stock · {outOfStock} out of stock</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { if (showForm && !editId) { cancelForm() } else if (!showForm) { cancelForm(); setShowForm(true) } else { cancelForm() } }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#003d73] hover:bg-[#002d57] text-white text-xs font-bold transition-colors shadow-md shadow-blue-900/20"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,21 +182,21 @@ export default function AdminMedications() {
       {/* Stats strip */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 flex items-center gap-3">
-          <span className="text-2xl">âœ…</span>
+          <span className="text-2xl">✅</span>
           <div>
             <p className="text-xl font-black text-emerald-700 dark:text-emerald-400">{inStock}</p>
             <p className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-bold uppercase tracking-wider">In Stock</p>
           </div>
         </div>
         <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800 rounded-xl p-3 flex items-center gap-3">
-          <span className="text-2xl">âš ï¸</span>
+          <span className="text-2xl">⚠️</span>
           <div>
             <p className="text-xl font-black text-rose-700 dark:text-rose-400">{outOfStock}</p>
             <p className="text-[10px] text-rose-600/70 dark:text-rose-400/70 font-bold uppercase tracking-wider">Out of Stock</p>
           </div>
         </div>
         <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-3 flex items-center gap-3">
-          <span className="text-2xl">ðŸ’Š</span>
+          <span className="text-2xl">💊</span>
           <div>
             <p className="text-xl font-black text-blue-700 dark:text-blue-400">{medications.length}</p>
             <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-wider">Total Items</p>
@@ -164,7 +207,10 @@ export default function AdminMedications() {
       {/* Create Form */}
       {showForm && (
         <form onSubmit={addMedication} className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-5 space-y-4">
-          <h2 className="text-sm font-black text-gray-900 dark:text-white">New Medication</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-gray-900 dark:text-white">{editId ? 'Edit Medication' : 'New Medication'}</h2>
+            {editId && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">Editing</span>}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <input placeholder="Medication Name *" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required
               className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
@@ -191,7 +237,7 @@ export default function AdminMedications() {
           </label>
           <button type="submit" disabled={saving}
             className="w-full py-3 rounded-xl bg-[#003d73] hover:bg-[#002d57] text-white text-sm font-black transition-colors shadow-md shadow-blue-900/20 disabled:opacity-50">
-            {saving ? 'Creating...' : 'Add to Inventory'}
+            {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add to Inventory'}
           </button>
         </form>
       )}
@@ -222,22 +268,23 @@ export default function AdminMedications() {
               <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Price</th>
               <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Qty</th>
               <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {filtered.map(med => {
               const catColor = CAT_COLORS[med.category || ''] || CAT_COLORS['Other']
-              const formIcon = FORM_ICONS[med.form] || 'ðŸ’Š'
-              const catIcon = CAT_ICONS[med.category || ''] || 'ðŸ’Š'
+              const formIcon = FORM_ICONS[med.form] || '💊'
+              const catIcon = CAT_ICONS[med.category || ''] || '💊'
               return (
-                <tr key={med.id} className="border-b border-gray-50 dark:border-[#1a1a1a] last:border-0 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
+                <tr key={med.id} className="border-b border-gray-50 dark:border-[#1a1a1a] last:border-0 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <span className="text-lg">{formIcon}</span>
                       <div>
                         <p className="font-bold text-gray-900 dark:text-white text-[13px]">{med.name}</p>
                         <p className="text-[11px] text-gray-400">
-                          {med.form} Â· {med.dosage}
+                          {med.form} · {med.dosage}
                           {med.prescription_required && <span className="ml-1.5 text-amber-500 font-bold">Rx</span>}
                         </p>
                       </div>
@@ -248,7 +295,7 @@ export default function AdminMedications() {
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold ${catColor}`}>
                         {catIcon} {med.category}
                       </span>
-                    ) : <span className="text-[12px] text-gray-400">â€”</span>}
+                    ) : <span className="text-[12px] text-gray-400"></span>}
                   </td>
                   <td className="px-4 py-3 text-[13px] font-bold text-gray-900 dark:text-white font-mono">
                     ${med.price.toFixed(2)}
@@ -268,16 +315,32 @@ export default function AdminMedications() {
                           : 'bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/30'
                       }`}
                     >
-                      {med.in_stock ? 'âœ“ In Stock' : 'âœ— Out of Stock'}
+                      {med.in_stock ? '✅ In Stock' : '⚠️ Out of Stock'}
                     </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEdit(med)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Delete ${med.name}?`)) deleteMedication(med.id) }}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
-                  <p className="text-3xl mb-2">ðŸ’Š</p>
+                <td colSpan={6} className="px-4 py-12 text-center">
+                  <p className="text-3xl mb-2">💊</p>
                   <p className="text-sm text-gray-400">No medications found</p>
                 </td>
               </tr>

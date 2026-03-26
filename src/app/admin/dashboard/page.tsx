@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -83,14 +83,14 @@ export default function AdminDashboard() {
   const bedColor = bedPercent > 90 ? '#ef4444' : bedPercent > 70 ? '#f59e0b' : '#10b981'
 
   const statCards = [
-    { label: 'Doctors', value: stats.doctors, sub: 'on staff', href: '/admin/doctors', icon: 'ðŸ‘¨â€âš•ï¸', color: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' },
-    { label: 'Departments', value: stats.departments, sub: 'active', href: '/admin/departments', icon: 'ðŸ¥', color: 'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400' },
-    { label: 'Active Queue', value: stats.queueActive, sub: 'waiting', href: '#', icon: 'ðŸŽ«', color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400' },
-    { label: 'Admitted', value: stats.admittedPatients, sub: 'patients', href: '/admin/patients', icon: 'ðŸ›ï¸', color: 'bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400' },
-    { label: 'Appointments', value: stats.todayAppointments, sub: 'total', href: '/admin/appointments', icon: 'ðŸ“…', color: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' },
-    { label: 'Pending', value: stats.pendingAppointments, sub: 'awaiting', href: '/admin/appointments', icon: 'â³', color: 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400' },
-    { label: 'Medications', value: stats.medications, sub: 'in stock', href: '/admin/medications', icon: 'ðŸ’Š', color: 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400' },
-    { label: 'Wards', value: stats.wardsCount, sub: 'operational', href: '/admin/wards', icon: 'ðŸ¨', color: 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' },
+    { label: 'Doctors', value: stats.doctors, sub: 'on staff', href: '/admin/doctors', icon: '👨‍⚕️', color: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400' },
+    { label: 'Departments', value: stats.departments, sub: 'active', href: '/admin/departments', icon: '🏥', color: 'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400' },
+    { label: 'Active Queue', value: stats.queueActive, sub: 'waiting', href: '#', icon: '🎫', color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400' },
+    { label: 'Admitted', value: stats.admittedPatients, sub: 'patients', href: '/admin/patients', icon: '🛏️', color: 'bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400' },
+    { label: 'Appointments', value: stats.todayAppointments, sub: 'total', href: '/admin/appointments', icon: '📅', color: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' },
+    { label: 'Pending', value: stats.pendingAppointments, sub: 'awaiting', href: '/admin/appointments', icon: '⏳', color: 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400' },
+    { label: 'Medications', value: stats.medications, sub: 'in stock', href: '/admin/medications', icon: '💊', color: 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400' },
+    { label: 'Wards', value: stats.wardsCount, sub: 'operational', href: '/admin/wards', icon: '🏨', color: 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' },
   ]
 
   const wardTypeColors: Record<string, string> = {
@@ -137,13 +137,13 @@ export default function AdminDashboard() {
       {/* Main grid */}
       <div className="grid lg:grid-cols-3 gap-4">
 
-        {/* Bed occupancy â€” span 1 */}
+        {/* Bed occupancy - span 1 */}
         <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-[#222] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold text-gray-900 dark:text-white">Bed Occupancy</h2>
             <button onClick={() => router.push('/admin/wards')}
               className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-              Manage â†’
+              Manage →
             </button>
           </div>
 
@@ -199,7 +199,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Active Queue â€” span 1 */}
+        {/* Active Queue - span 1 */}
         <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-[#222] p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-gray-900 dark:text-white">Active Queue</h2>
@@ -211,7 +211,7 @@ export default function AdminDashboard() {
 
           {recentQueue.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-              <span className="text-4xl mb-2">ðŸŽ«</span>
+              <span className="text-4xl mb-2">🎫</span>
               <p className="text-sm">No patients in queue</p>
             </div>
           ) : (
@@ -223,7 +223,7 @@ export default function AdminDashboard() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{q.patient_name}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{q.department?.name || 'â€”'}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{q.department?.name || ''}</p>
                   </div>
                   <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0 ${
                     q.priority === 'EMERGENCY' ? 'bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400'
@@ -239,7 +239,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Pending appointments â€” span 1 */}
+        {/* Pending appointments - span 1 */}
         <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-[#222] p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-gray-900 dark:text-white">Pending Appointments</h2>
@@ -252,7 +252,7 @@ export default function AdminDashboard() {
 
           {pendingAppts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-              <span className="text-4xl mb-2">âœ…</span>
+              <span className="text-4xl mb-2">📅</span>
               <p className="text-sm">All appointments handled</p>
             </div>
           ) : (
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
             onClick={() => router.push('/admin/appointments')}
             className="w-full mt-3 py-2 rounded-lg border border-gray-200 dark:border-[#222] text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors"
           >
-            View all appointments â†’
+            View all appointments →
           </button>
         </div>
       </div>

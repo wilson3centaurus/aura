@@ -19,16 +19,20 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
   const [profile, setProfile] = useState<{ name: string; specialty: string } | null>(null)
 
   const isLoginPage = pathname === '/doctor/login'
+  const isSetupPage = pathname === '/doctor/setup'
 
   useEffect(() => {
-    if (!isLoginPage) {
+    if (!isLoginPage && !isSetupPage) {
       fetch('/api/doctors/me').then(r => r.ok ? r.json() : null).then(d => {
-        if (d) setProfile({ name: d.user?.name || 'Doctor', specialty: d.specialty || '' })
+        if (d) {
+          setProfile({ name: d.user?.name || 'Doctor', specialty: d.specialty || '' })
+          if (!d.is_activated) router.push('/doctor/setup')
+        }
       }).catch(() => {})
     }
-  }, [isLoginPage])
+  }, [isLoginPage, isSetupPage])
 
-  if (isLoginPage) {
+  if (isLoginPage || isSetupPage) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a]">
         <button onClick={toggleTheme} className="fixed top-3 right-3 z-50 p-2 rounded-full bg-white/80 dark:bg-[#222]/80 shadow-md text-lg text-gray-600 dark:text-gray-400" aria-label="Toggle theme">

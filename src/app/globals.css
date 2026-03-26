@@ -46,7 +46,7 @@ html, body {
 }
 
 .kiosk-card-icon {
-  @apply w-14 h-14 rounded-xl flex items-center justify-center text-white text-2xl
+  @apply w-16 h-16 rounded-xl flex items-center justify-center text-white text-3xl
          shadow-md group-hover:scale-110 transition-transform duration-200;
 }
 

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -113,7 +113,7 @@ export default function DoctorDashboard() {
           body: JSON.stringify({ status: 'ACCEPTED', scheduledAt }),
         })
       } else {
-        const reason = declineReason + (declineCustom ? ` â€” ${declineCustom}` : '')
+        const reason = declineReason + (declineCustom ? ` — ${declineCustom}` : '')
         await fetch(`/api/appointments/${selectedAppt.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -162,8 +162,8 @@ export default function DoctorDashboard() {
             <p className="text-xs text-gray-500 font-medium uppercase tracking-widest mb-1">CLINICAL WORKSTATION</p>
             <h1 className="text-2xl font-black text-gray-900 dark:text-white">{profile?.user.name || 'Doctor'}</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {profile?.specialty} Â· {profile?.department.name}
-              {profile?.room_number && ` Â· Room ${profile.room_number}`}
+              {profile?.specialty} · {profile?.department.name}
+              {profile?.room_number && ` · Room ${profile.room_number}`}
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -174,7 +174,7 @@ export default function DoctorDashboard() {
             </div>
             {pending.length > 0 && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs font-bold animate-pulse">
-                ðŸ”” {pending.length} new request{pending.length > 1 ? 's' : ''}
+                🔔 {pending.length} new request{pending.length > 1 ? 's' : ''}
               </span>
             )}
           </div>
@@ -231,7 +231,7 @@ export default function DoctorDashboard() {
 
           {appointments.length === 0 ? (
             <div className="flex flex-col items-center py-10 text-gray-400">
-              <span className="text-4xl mb-2">ðŸ“­</span>
+              <span className="text-4xl mb-2">📅</span>
               <p className="text-sm">No appointment requests</p>
             </div>
           ) : (
@@ -256,10 +256,10 @@ export default function DoctorDashboard() {
                         </span>
                       </div>
                       <p className="text-[10px] text-gray-500 mt-0.5 truncate">{a.symptoms || 'No symptoms provided'}</p>
-                      {a.patient_phone && <p className="text-[10px] text-gray-400">ðŸ“ž {a.patient_phone}</p>}
+                      {a.patient_phone && <p className="text-[10px] text-gray-400">📞 {a.patient_phone}</p>}
                       {a.status === 'ACCEPTED' && a.scheduled_at && (
                         <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          ðŸ• {new Date(a.scheduled_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          📅 {new Date(a.scheduled_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       )}
                       {a.status === 'DECLINED' && a.decline_reason && (
@@ -301,7 +301,7 @@ export default function DoctorDashboard() {
 
           {queue.length === 0 ? (
             <div className="flex flex-col items-center py-10 text-gray-400">
-              <span className="text-4xl mb-2">ðŸŽ«</span>
+              <span className="text-4xl mb-2">🎫</span>
               <p className="text-sm">Queue is empty</p>
             </div>
           ) : (
@@ -345,11 +345,11 @@ export default function DoctorDashboard() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#141414] rounded-2xl border border-gray-200 dark:border-[#282828] shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-black text-gray-900 dark:text-white mb-1">
-              {actionMode === 'accept' ? 'âœ… Accept Appointment' : 'âŒ Decline Appointment'}
+              {actionMode === 'accept' ? '✅ Accept Appointment' : '❌ Decline Appointment'}
             </h3>
             <p className="text-xs text-gray-500 mb-4">
               Patient: <strong>{selectedAppt.patient_name}</strong>
-              {selectedAppt.symptoms && <> Â· {selectedAppt.symptoms}</>}
+              {selectedAppt.symptoms && <> · {selectedAppt.symptoms}</>}
             </p>
 
             {actionMode === 'accept' ? (
@@ -366,7 +366,7 @@ export default function DoctorDashboard() {
                           : 'bg-gray-50 dark:bg-[#1a1a1a] border-gray-200 dark:border-[#333] text-gray-600 dark:text-gray-400 hover:border-emerald-400'
                       }`}
                     >
-                      {t === 'now' ? 'ðŸŸ¢ Right Now' : 'ðŸ“… Custom Time'}
+                      {t === 'now' ? '⚡ Right Now' : '📅 Custom Time'}
                     </button>
                   ))}
                 </div>

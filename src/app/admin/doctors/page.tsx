@@ -8,7 +8,10 @@ interface Doctor {
   status: string
   room_number: string | null
   phone: string | null
-  user: { name: string; email: string; profile_image: string | null }
+  latitude: number | null
+  longitude: number | null
+  is_activated: boolean
+  user: { name: string; email: string; profile_image: string | null; password_changed: boolean }
   department: { id: string; name: string }
   _count?: { queueEntries: number }
 }
@@ -51,6 +54,11 @@ export default function AdminDoctors() {
   const [form, setForm] = useState({ name: '', email: '', idNumber: '', specialty: '', departmentId: '', roomNumber: '', phone: '' })
   const [saving, setSaving] = useState(false)
   const [createdCreds, setCreatedCreds] = useState<CreatedCredentials | null>(null)
+  const [editDoctor, setEditDoctor] = useState<Doctor | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', email: '', specialty: '', departmentId: '', roomNumber: '', phone: '', status: '', latitude: '', longitude: '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [deleteDoctor, setDeleteDoctor] = useState<Doctor | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = async () => {
     const [docsRes, depsRes] = await Promise.all([
@@ -98,6 +106,58 @@ export default function AdminDoctors() {
     return matchSearch && matchStatus
   })
 
+  const openEdit = (doc: Doctor) => {
+    setEditDoctor(doc)
+    setEditForm({
+      name: doc.user.name,
+      email: doc.user.email,
+      specialty: doc.specialty,
+      departmentId: doc.department?.id || '',
+      roomNumber: doc.room_number || '',
+      phone: doc.phone || '',
+      status: doc.status,
+      latitude: doc.latitude != null ? String(doc.latitude) : '',
+      longitude: doc.longitude != null ? String(doc.longitude) : '',
+    })
+  }
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editDoctor) return
+    setEditSaving(true)
+    try {
+      const payload: Record<string, unknown> = {
+        name: editForm.name,
+        email: editForm.email,
+        specialty: editForm.specialty,
+        departmentId: editForm.departmentId,
+        roomNumber: editForm.roomNumber,
+        phone: editForm.phone,
+        status: editForm.status,
+      }
+      if (editForm.latitude !== '') payload.latitude = parseFloat(editForm.latitude)
+      if (editForm.longitude !== '') payload.longitude = parseFloat(editForm.longitude)
+      const res = await fetch(`/api/doctors/${editDoctor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) { setEditDoctor(null); loadData() }
+    } catch {}
+    setEditSaving(false)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteDoctor) return
+    setDeleting(true)
+    try {
+      await fetch(`/api/doctors/${deleteDoctor.id}`, { method: 'DELETE' })
+      setDeleteDoctor(null)
+      loadData()
+    } catch {}
+    setDeleting(false)
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 rounded-full border-2 border-[#003d73] border-t-transparent animate-spin" />
@@ -114,7 +174,7 @@ export default function AdminDoctors() {
       {createdCreds && (
         <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5">
           <div className="flex items-start gap-3">
-            <span className="text-2xl">âœ…</span>
+            <span className="text-2xl">✅</span>
             <div className="flex-1">
               <p className="text-sm font-black text-emerald-800 dark:text-emerald-300 mb-3">Doctor account created for {createdCreds.name}</p>
               <div className="grid grid-cols-2 gap-3">
@@ -128,7 +188,7 @@ export default function AdminDoctors() {
                 </div>
               </div>
               <p className="text-[11px] text-emerald-600/70 dark:text-emerald-400/60 mt-2">
-                âš ï¸ Share these credentials with the doctor securely. The password is their ID number in lowercase.
+                ⚠️ Share these credentials with the doctor securely. The password is their ID number in lowercase.
               </p>
             </div>
             <button onClick={() => setCreatedCreds(null)} className="text-emerald-500 hover:text-emerald-700 transition-colors">
@@ -145,21 +205,19 @@ export default function AdminDoctors() {
           <p className="text-xs text-gray-500 mt-0.5">{doctors.length} registered doctors</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#003d73] hover:bg-[#002d57] text-white text-xs font-bold transition-colors shadow-md shadow-blue-900/20"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {showForm
-              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />}
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
           </svg>
-          {showForm ? 'Cancel' : 'Add Doctor'}
+          Add Doctor
         </button>
       </div>
 
       {/* Status strip */}
       <div className="grid grid-cols-4 gap-3">
-        {[['AVAILABLE', 'ðŸŸ¢'], ['BUSY', 'ðŸŸ¡'], ['ON_BREAK', 'ðŸ”µ'], ['OFFLINE', 'âš«']].map(([s, emoji]) => {
+        {[['AVAILABLE', '🟢'], ['BUSY', '🟡'], ['ON_BREAK', '🔵'], ['OFFLINE', '⚫']].map(([s, emoji]) => {
           const cfg = STATUS_CONFIG[s]
           return (
             <div key={s} className={`rounded-xl border p-3 text-center ${cfg.bg.split(' ').slice(0, 2).join(' ')} border-current/20`}>
@@ -173,11 +231,18 @@ export default function AdminDoctors() {
 
       {/* Create Form */}
       {showForm && (
-        <form onSubmit={addDoctor} className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-black text-gray-900 dark:text-white">Register New Doctor</h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">Email is auto-generated from name. The ID number (lowercase, no spaces) becomes the login password.</p>
-          </div>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-start justify-between p-5 border-b border-gray-100 dark:border-[#222]">
+              <div>
+                <h2 className="text-sm font-black text-gray-900 dark:text-white">Register New Doctor</h2>
+                <p className="text-[11px] text-gray-400 mt-0.5">Email is auto-generated from name. The ID number (lowercase, no spaces) becomes the login password.</p>
+              </div>
+              <button type="button" onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222] transition-colors ml-3 flex-shrink-0">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <form onSubmit={addDoctor} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <input
               placeholder="Full Name *"
@@ -219,11 +284,13 @@ export default function AdminDoctors() {
             <input placeholder="Phone Number" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
               className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
           </div>
-          <button type="submit" disabled={saving}
-            className="w-full py-3 rounded-xl bg-[#003d73] hover:bg-[#002d57] text-white text-sm font-black transition-colors shadow-md shadow-blue-900/20 disabled:opacity-50">
-            {saving ? 'Creating Account...' : 'Create Doctor Account'}
-          </button>
-        </form>
+              <button type="submit" disabled={saving}
+                className="w-full py-3 rounded-xl bg-[#003d73] hover:bg-[#002d57] text-white text-sm font-black transition-colors shadow-md shadow-blue-900/20 disabled:opacity-50">
+                {saving ? 'Creating Account...' : 'Create Doctor Account'}
+              </button>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Filters */}
@@ -255,7 +322,9 @@ export default function AdminDoctors() {
               <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Department</th>
               <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Room</th>
               <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Activation</th>
               <th className="text-left px-4 py-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Queue</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
@@ -263,12 +332,13 @@ export default function AdminDoctors() {
               const sc = STATUS_CONFIG[doc.status] || STATUS_CONFIG.OFFLINE
               const av = avatarColor(doc.user.name)
               return (
-                <tr key={doc.id} className="border-b border-gray-50 dark:border-[#1a1a1a] last:border-0 hover:bg-gray-50/50 dark:hover:bg-[#1a1a1a] transition-colors">
+                <tr key={doc.id} className="border-b border-gray-50 dark:border-[#1a1a1a] last:border-0 hover:bg-gray-50/50 dark:hover:bg-[#1a1a1a] transition-colors group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-9 h-9 rounded-xl ${av} flex items-center justify-center text-xs font-black text-white flex-shrink-0`}>
-                        {initials(doc.user.name)}
-                      </div>
+                      {doc.user.profile_image
+                        ? <img src={doc.user.profile_image} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+                        : <div className={`w-9 h-9 rounded-xl ${av} flex items-center justify-center text-xs font-black text-white flex-shrink-0`}>{initials(doc.user.name)}</div>
+                      }
                       <div>
                         <p className="font-bold text-gray-900 dark:text-white text-[13px]">{doc.user.name}</p>
                         <p className="text-[11px] text-gray-400 font-mono">{doc.user.email}</p>
@@ -278,8 +348,8 @@ export default function AdminDoctors() {
                   <td className="px-4 py-3">
                     <span className="text-[12px] font-semibold text-gray-700 dark:text-gray-300">{doc.specialty}</span>
                   </td>
-                  <td className="px-4 py-3 text-[12px] text-gray-600 dark:text-gray-400">{doc.department?.name || 'â€”'}</td>
-                  <td className="px-4 py-3 text-[12px] text-gray-600 dark:text-gray-400">{doc.room_number || 'â€”'}</td>
+                  <td className="px-4 py-3 text-[12px] text-gray-600 dark:text-gray-400">{doc.department?.name || '—'}</td>
+                  <td className="px-4 py-3 text-[12px] text-gray-600 dark:text-gray-400">{doc.room_number || '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold ${sc.bg}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${sc.dot} ${doc.status === 'AVAILABLE' ? 'animate-pulse' : ''}`} />
@@ -287,21 +357,49 @@ export default function AdminDoctors() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
+                    {doc.is_activated ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />Active
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        {[{ done: !!doc.user.profile_image, tip: 'Photo' }, { done: doc.latitude != null, tip: 'Location' }, { done: doc.user.password_changed, tip: 'Password' }].map(s => (
+                          <span key={s.tip} title={s.tip} className={`w-2 h-2 rounded-full ${s.done ? 'bg-emerald-400' : 'bg-gray-200 dark:bg-[#333]'}`} />
+                        ))}
+                        <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold">
+                          {[!!doc.user.profile_image, doc.latitude != null, doc.user.password_changed].filter(Boolean).length}/3
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     {(doc._count?.queueEntries ?? 0) > 0 ? (
                       <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[11px] font-bold">
                         {doc._count?.queueEntries} in queue
                       </span>
                     ) : (
-                      <span className="text-[12px] text-gray-300 dark:text-gray-600">â€”</span>
+                      <span className="text-[12px] text-gray-300 dark:text-gray-600">—</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEdit(doc)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all">
+                        Edit
+                      </button>
+                      <button onClick={() => setDeleteDoctor(doc)}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-all">
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center">
-                  <p className="text-3xl mb-2">ðŸ‘¨â€âš•ï¸</p>
+                <td colSpan={7} className="px-4 py-12 text-center">
+                  <p className="text-3xl mb-2">👨‍⚕️</p>
                   <p className="text-sm text-gray-400">No doctors found</p>
                 </td>
               </tr>
@@ -309,6 +407,131 @@ export default function AdminDoctors() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Doctor Modal */}
+      {editDoctor && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#222]">
+              <div>
+                <h3 className="text-sm font-black text-gray-900 dark:text-white">Edit Doctor</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">{editDoctor.user.name}</p>
+              </div>
+              <button onClick={() => setEditDoctor(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222] transition-colors">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <form onSubmit={saveEdit} className="p-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Full Name</label>
+                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="Dr. Jane Smith"
+                    className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Login Email</label>
+                  <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="doctor@hospital.co.zw"
+                    className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]">
+                  <option value="AVAILABLE">Available</option>
+                  <option value="BUSY">Busy</option>
+                  <option value="ON_BREAK">On Break</option>
+                  <option value="OFFLINE">Offline</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Specialty</label>
+                <select value={editForm.specialty} onChange={e => setEditForm(f => ({ ...f, specialty: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]">
+                  {SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Department</label>
+                <select value={editForm.departmentId} onChange={e => setEditForm(f => ({ ...f, departmentId: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]">
+                  <option value="">Select Department</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Room Number</label>
+                  <input value={editForm.roomNumber} onChange={e => setEditForm(f => ({ ...f, roomNumber: e.target.value }))}
+                    placeholder="e.g. A-12"
+                    className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Phone</label>
+                  <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                    placeholder="+263..."
+                    className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Office Latitude</label>
+                  <input type="number" step="any" value={editForm.latitude} onChange={e => setEditForm(f => ({ ...f, latitude: e.target.value }))}
+                    placeholder="-18.9230"
+                    className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Office Longitude</label>
+                  <input type="number" step="any" value={editForm.longitude} onChange={e => setEditForm(f => ({ ...f, longitude: e.target.value }))}
+                    placeholder="32.4740"
+                    className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#003d73]" />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setEditDoctor(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-[#333] text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" disabled={editSaving}
+                  className="flex-1 py-2.5 rounded-xl bg-[#003d73] hover:bg-[#002d57] text-white text-sm font-bold transition-colors disabled:opacity-50">
+                  {editSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteDoctor && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1">Remove Doctor?</h3>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{deleteDoctor.user.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{deleteDoctor.specialty}</p>
+              <p className="text-xs text-gray-400 mt-3">This will permanently delete their account and login credentials.</p>
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setDeleteDoctor(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-[#333] text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
+                  Cancel
+                </button>
+                <button onClick={confirmDelete} disabled={deleting}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-50">
+                  {deleting ? 'Removing...' : 'Remove Doctor'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

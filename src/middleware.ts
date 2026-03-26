@@ -5,8 +5,13 @@ import { verifyToken } from '@/lib/auth'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Protect doctor dashboard routes
-  if (pathname.startsWith('/doctor/dashboard') || pathname.startsWith('/doctor/appointments') || pathname.startsWith('/doctor/queue')) {
+  // Protect doctor dashboard and setup routes
+  if (
+    pathname.startsWith('/doctor/dashboard') ||
+    pathname.startsWith('/doctor/appointments') ||
+    pathname.startsWith('/doctor/queue') ||
+    pathname.startsWith('/doctor/setup')
+  ) {
     const token = request.cookies.get('aura-token')?.value
     if (!token) {
       return NextResponse.redirect(new URL('/doctor/login', request.url))
@@ -33,5 +38,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/doctor/dashboard/:path*', '/doctor/appointments/:path*', '/doctor/queue/:path*', '/admin/((?!login).*)'],
+  matcher: ['/doctor/dashboard/:path*', '/doctor/appointments/:path*', '/doctor/queue/:path*', '/doctor/setup', '/admin/((?!login).*)'],
 }

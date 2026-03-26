@@ -20,7 +20,7 @@ interface LocationPin {
   writtenDirections: string | null
   floor: string
   iconName: string
-  isActive: boolean
+  is_active: boolean
 }
 
 const CATEGORY_META: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -46,7 +46,7 @@ export default function KioskFacilities() {
   useEffect(() => {
     fetch('/api/locations')
       .then(r => r.json())
-      .then(data => { setPins(Array.isArray(data) ? data.filter(p => p.isActive) : []); setLoading(false) })
+      .then(data => { setPins(Array.isArray(data) ? data.filter((p: LocationPin) => p.is_active !== false) : []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 

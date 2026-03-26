@@ -40,7 +40,10 @@ export default function AdminPatients() {
       fetch('/api/wards').then(r => r.json()),
     ])
     setPatients(Array.isArray(pData) ? pData : [])
-    setWards(Array.isArray(wData) ? wData : [])
+    setWards(Array.isArray(wData) ? wData.map((w: any) => ({
+      ...w,
+      beds: w.beds || []
+    })) : [])
     setLoading(false)
   }
 
@@ -59,16 +62,19 @@ export default function AdminPatients() {
     e.preventDefault()
     setSaving(true)
     try {
+      const selectedW = wards.find(w => w.id === form.wardId)
+      const selectedB = selectedW?.beds?.find((b: any) => b.id === form.bedId)
       await fetch('/api/patients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name,
-          date_of_birth: form.dateOfBirth || null,
-          diagnosis: form.diagnosis || null,
-          ward_id: form.wardId || null,
-          bed_id: form.bedId || null,
-          notes: form.notes || null,
+          dateOfBirth: form.dateOfBirth || null,
+          notes: form.diagnosis ? `${form.diagnosis}${form.notes ? ' — ' + form.notes : ''}` : form.notes || null,
+          ward: selectedW?.name || null,
+          bed: selectedB?.bed_number || null,
+          wardId: form.wardId || null,
+          bedId: form.bedId || null,
         }),
       })
       setForm({ name: '', dateOfBirth: '', diagnosis: '', wardId: '', bedId: '', notes: '' })

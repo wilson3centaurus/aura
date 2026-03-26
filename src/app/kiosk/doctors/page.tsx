@@ -55,11 +55,29 @@ export default function KioskDoctors() {
   const [bookingDoctor, setBookingDoctor] = useState<Doctor | null>(null)
   const [bookingStep, setBookingStep] = useState<'form' | 'qr'>('form')
   const [bookingForm, setBookingForm] = useState({ name: '', phone: '', symptoms: '' })
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([])
   const [booking, setBooking] = useState(false)
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null)
 
+  const SYMPTOM_CHIPS = [
+    'Fever', 'Headache', 'Cough', 'Chest Pain', 'Abdominal Pain',
+    'Nausea / Vomiting', 'Diarrhoea', 'Shortness of Breath', 'Sore Throat',
+    'Back Pain', 'Body Aches', 'Dizziness', 'Skin Rash', 'Eye Problem', 'Ear Pain',
+    'Joint Pain', 'Fatigue', 'High Blood Pressure',
+  ]
+
+  const toggleSymptom = (s: string) => {
+    setSelectedSymptoms(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
+
+  const buildSymptomsText = () => {
+    const chips = selectedSymptoms.join(', ')
+    const extra = bookingForm.symptoms.trim()
+    return [chips, extra].filter(Boolean).join('. ')
+  }
+
   useEffect(() => {
-    fetch('/api/doctors')
+    fetch('/api/doctors?activated=true')
       .then(res => res.json())
       .then(data => { setDoctors(Array.isArray(data) ? data : []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -67,6 +85,8 @@ export default function KioskDoctors() {
 
   const submitBooking = async () => {
     if (!bookingDoctor || !bookingForm.name.trim()) return
+    const symptoms = buildSymptomsText()
+    if (!symptoms) return
     setBooking(true)
     try {
       const res = await fetch('/api/appointments', {
@@ -75,7 +95,7 @@ export default function KioskDoctors() {
         body: JSON.stringify({
           patientName: bookingForm.name,
           patientPhone: bookingForm.phone || null,
-          symptoms: bookingForm.symptoms || null,
+          symptoms,
           doctorId: bookingDoctor.id,
           scheduledAt: new Date().toISOString(),
         }),
@@ -131,7 +151,7 @@ export default function KioskDoctors() {
         <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
           <div className="bg-white dark:bg-[#111] rounded-3xl border border-gray-200 dark:border-[#222] p-6 w-full max-w-sm text-center shadow-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs font-bold mb-4">
-              â³ Awaiting doctor confirmation
+              ⏳ Awaiting doctor confirmation
             </div>
 
             <div className="flex justify-center mb-4">
@@ -161,7 +181,7 @@ export default function KioskDoctors() {
             onClick={() => router.push(`/kiosk/track?qr=${bookingResult.qrCode}`)}
             className="w-full max-w-sm py-3.5 rounded-2xl bg-[#003d73] text-white font-black text-sm shadow-lg shadow-blue-900/20 hover:bg-[#002d57] transition-colors"
           >
-            Track Appointment Status â†’
+            Track Appointment Status →
           </button>
           <button
             onClick={() => router.push('/kiosk/menu')}
@@ -193,10 +213,10 @@ export default function KioskDoctors() {
           <div className="max-w-lg mx-auto">
             {/* Doctor info */}
             <div className="bg-gray-50 dark:bg-[#111] rounded-2xl p-4 mb-5 border border-gray-100 dark:border-[#222] flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-[#003d73]/10 flex items-center justify-center text-xl">ðŸ‘¨â€âš•ï¸</div>
+              <div className="w-12 h-12 rounded-xl bg-[#003d73]/10 flex items-center justify-center text-xl">👨‍⚕️</div>
               <div>
                 <p className="font-black text-gray-900 dark:text-white text-sm">{bookingDoctor.user.name}</p>
-                <p className="text-xs text-gray-500">{bookingDoctor.specialty} Â· {bookingDoctor.department.name}</p>
+                <p className="text-xs text-gray-500">{bookingDoctor.specialty} · {bookingDoctor.department.name}</p>
                 {bookingDoctor.room_number && <p className="text-xs text-gray-400">Room {bookingDoctor.room_number}</p>}
               </div>
               <span className={`ml-auto text-[10px] font-bold px-2 py-1 rounded-full ${sc.badge}`}>
@@ -229,21 +249,37 @@ export default function KioskDoctors() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Reason / Symptoms *</label>
-                <textarea
-                  value={bookingForm.symptoms}
-                  onChange={e => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
-                  placeholder="Briefly describe your symptoms or reason for visit"
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none"
-                />
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Symptoms / Reason for Visit *</label>
+              {/* Symptom chips */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {SYMPTOM_CHIPS.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleSymptom(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                      selectedSymptoms.includes(s)
+                        ? 'bg-[#003d73] border-[#003d73] text-white shadow-sm'
+                        : 'bg-gray-50 dark:bg-[#1a1a1a] border-gray-200 dark:border-[#333] text-gray-600 dark:text-gray-400 hover:border-[#003d73] dark:hover:border-blue-500'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
+              <textarea
+                value={bookingForm.symptoms}
+                onChange={e => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
+                placeholder="Add more details (optional)..."
+                rows={2}
+                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none"
+              /></div>
             </div>
 
             <div className="mt-5 space-y-2.5">
               <button
                 onClick={submitBooking}
-                disabled={booking || !bookingForm.name.trim() || !bookingForm.symptoms.trim()}
+                disabled={booking || !bookingForm.name.trim() || (!selectedSymptoms.length && !bookingForm.symptoms.trim())}
                 className="w-full py-4 rounded-2xl bg-[#003d73] hover:bg-[#002d57] text-white font-black text-base transition-all disabled:opacity-50 shadow-lg shadow-blue-900/20"
               >
                 {booking ? (
@@ -322,7 +358,7 @@ export default function KioskDoctors() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <span className="text-5xl mb-3">ðŸ‘¨â€âš•ï¸</span>
+            <span className="text-5xl mb-3">👨‍⚕️</span>
             <p className="text-base font-semibold">No doctors found</p>
             <p className="text-sm mt-1">Try adjusting your search or filter</p>
           </div>
@@ -334,7 +370,7 @@ export default function KioskDoctors() {
               return (
                 <div key={doctor.id} className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-4 flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#003d73]/10 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/10 flex items-center justify-center text-xl flex-shrink-0">
-                    ðŸ‘¨â€âš•ï¸
+                    👨‍⚕️
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -345,18 +381,13 @@ export default function KioskDoctors() {
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{doctor.specialty}</p>
-                    <p className="text-[10px] text-gray-400">{doctor.department.name} {doctor.room_number && `Â· Room ${doctor.room_number}`}</p>
+                    <p className="text-[10px] text-gray-400">{doctor.department.name} {doctor.room_number && `· Room ${doctor.room_number}`}</p>
                   </div>
                   <button
-                    onClick={() => canBook && setBookingDoctor(doctor)}
-                    disabled={!canBook}
-                    className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
-                      canBook
-                        ? 'bg-[#003d73] hover:bg-[#002d57] text-white shadow-md shadow-blue-900/20 active:scale-95'
-                        : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-400 cursor-not-allowed'
-                    }`}
+                    onClick={() => setBookingDoctor(doctor)}
+                    className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-black transition-all bg-[#003d73] hover:bg-[#002d57] text-white shadow-md shadow-blue-900/20 active:scale-95"
                   >
-                    {canBook ? 'Book' : sc.label}
+                    {doctor.status === 'AVAILABLE' ? 'Book' : 'Request'}
                   </button>
                 </div>
               )

@@ -14,10 +14,10 @@ interface Fee {
 const CATEGORIES = ['Consultation', 'Emergency', 'Diagnostics', 'Laboratory', 'Maternity', 'Surgery', 'Admission', 'Dental', 'Ophthalmology', 'Rehabilitation', 'Transport', 'Mortuary', 'Admin']
 
 const CAT_ICONS: Record<string, string> = {
-  'Consultation': 'ðŸ©º', 'Emergency': 'ðŸš¨', 'Diagnostics': 'ðŸ”¬',
-  'Laboratory': 'ðŸ§ª', 'Maternity': 'ðŸ¤°', 'Surgery': 'ðŸ”ª',
-  'Admission': 'ðŸ›ï¸', 'Dental': 'ðŸ¦·', 'Ophthalmology': 'ðŸ‘ï¸',
-  'Rehabilitation': 'ðŸƒ', 'Transport': 'ðŸš‘', 'Mortuary': 'âš°ï¸', 'Admin': 'ðŸ“‹',
+  'Consultation': '🩺', 'Emergency': '🚨', 'Diagnostics': '🔬',
+  'Laboratory': '🧪', 'Maternity': '🤰', 'Surgery': '🔪',
+  'Admission': '🛏️', 'Dental': '🦷', 'Ophthalmology': '👁️',
+  'Rehabilitation': '🏃', 'Transport': '🚑', 'Mortuary': '⚰️', 'Admin': '📋',
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -164,7 +164,7 @@ export default function AdminFees() {
         <div>
           <h1 className="text-xl font-black text-gray-900 dark:text-white">Fees & Pricing</h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            {fees.length} services Â· {Object.keys(groupedFees).length} categories Â·{' '}
+            {fees.length} services · {Object.keys(groupedFees).length} categories ·{' '}
             <span className="font-medium text-gray-700 dark:text-gray-300">Click any price to edit</span>
           </p>
         </div>
@@ -232,7 +232,7 @@ export default function AdminFees() {
       <div className="space-y-4">
         {Object.entries(groupedFees).map(([category, items]) => {
           const colorClass = CAT_COLORS[category] || CAT_COLORS['Admin']
-          const icon = CAT_ICONS[category] || 'ðŸ“‹'
+          const icon = CAT_ICONS[category] || '📋'
           const catTotal = items.reduce((sum, f) => sum + f.price, 0)
           return (
             <div key={category} className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] overflow-hidden">
@@ -243,27 +243,25 @@ export default function AdminFees() {
                   <span className="text-[10px] opacity-70">({items.length} service{items.length !== 1 ? 's' : ''})</span>
                 </div>
               </div>
-              <table className="w-full text-sm">
-                <tbody>
-                  {items.map(fee => (
-                    <tr key={fee.id} className="border-b border-gray-50 dark:border-[#1a1a1a] last:border-0 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-gray-900 dark:text-white text-[13px]">{fee.service}</p>
-                        {fee.description && <p className="text-[11px] text-gray-400 mt-0.5">{fee.description}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <InlinePrice fee={fee} onSaved={handlePriceSaved} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {items.map(fee => (
+                  <div key={fee.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-[#0d0d0d] border border-gray-100 dark:border-[#1e1e1e] hover:border-gray-200 dark:hover:border-[#2a2a2a] transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 dark:text-white text-[13px] truncate">{fee.service}</p>
+                      {fee.description && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{fee.description}</p>}
+                    </div>
+                    <div className="flex-shrink-0">
+                      <InlinePrice fee={fee} onSaved={handlePriceSaved} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )
         })}
         {Object.keys(groupedFees).length === 0 && (
           <div className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-12 text-center">
-            <p className="text-3xl mb-2">ðŸ’°</p>
+            <p className="text-3xl mb-2">💰</p>
             <p className="text-sm text-gray-400">No service fees found</p>
           </div>
         )}

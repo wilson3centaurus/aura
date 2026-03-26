@@ -59,7 +59,7 @@ export default function KioskMenu() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
 
       {/* ── Header ── */}
       <header className="hero-gradient px-5 py-3.5 flex items-center justify-between shadow-lg">
@@ -78,20 +78,20 @@ export default function KioskMenu() {
       </header>
 
       {/* ── Menu grid ── */}
-      <main className="flex-1 p-5 pb-2">
-        <div className="grid grid-cols-2 gap-3 max-w-2xl mx-auto">
+      <main className="flex-1 flex flex-col p-3 pb-1">
+        <div className="flex-1 grid grid-cols-2 gap-2.5">
           {MENU_ITEMS.map((item) => {
             const Icon = item.icon
             return (
               <button
                 key={item.id}
                 onClick={() => router.push(item.href)}
-                className="group kiosk-card flex flex-col p-4 text-left"
+                className="group kiosk-card flex flex-col p-4 text-left h-full"
               >
                 <div className={`kiosk-card-icon bg-gradient-to-br ${item.color} mb-3`}>
                   <Icon />
                 </div>
-                <span className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-snug">
+                <span className="text-base font-bold text-gray-800 dark:text-gray-100 leading-snug">
                   {item.label}
                 </span>
                 <span className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
@@ -104,9 +104,9 @@ export default function KioskMenu() {
       </main>
 
       {/* ── Amenities notice ── */}
-      <div className="mx-5 mb-3 px-4 py-3 rounded-2xl bg-white/70 dark:bg-gray-800/70 border border-blue-100 dark:border-blue-900/30 backdrop-blur-sm">
+      <div className="mx-3 mb-2 px-4 py-2 rounded-2xl bg-white/70 dark:bg-gray-800/70 border border-blue-100 dark:border-blue-900/30 backdrop-blur-sm text-center">
         <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1.5">{t(lang, 'suppliesBelow')}</p>
-        <div className="flex items-center gap-5 text-[11px] text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-center gap-5 text-[11px] text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1.5"><i className="fa-solid fa-droplet text-blue-400" /> Water</span>
           <span className="flex items-center gap-1.5"><i className="fa-solid fa-hand-sparkles text-cyan-400" /> Sanitizer</span>
           <span className="flex items-center gap-1.5"><i className="fa-solid fa-toilet-paper text-gray-400" /> Tissues</span>

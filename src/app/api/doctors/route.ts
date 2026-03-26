@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const onlyActivated = searchParams.get('activated') === 'true'
+
   const { data: doctors, error } = await supabase
     .from('doctors')
     .select(`
       *,
-      user:users!doctors_user_id_fkey(name, email, profile_image),
+      user:users!doctors_user_id_fkey(name, email, profile_image, password_changed),
       department:departments!doctors_department_id_fkey(id, name)
     `)
     .order('created_at', { ascending: true })
@@ -25,7 +28,14 @@ export async function GET() {
     if (q.doctor_id) countMap[q.doctor_id] = (countMap[q.doctor_id] || 0) + 1
   })
 
-  const result = doctors?.map(d => ({ ...d, _count: { queueEntries: countMap[d.id] || 0 } }))
+  const result = doctors
+    ?.map(d => ({
+      ...d,
+      is_activated: !!(d.user?.profile_image && d.latitude != null && d.user?.password_changed),
+      _count: { queueEntries: countMap[d.id] || 0 },
+    }))
+    .filter(d => !onlyActivated || d.is_activated)
+
   return NextResponse.json(result)
 }
 
