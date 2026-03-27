@@ -25,7 +25,7 @@ export default function KioskVisit() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
 
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
@@ -42,7 +42,7 @@ export default function KioskVisit() {
         <MdPersonSearch className="text-white/60 text-2xl" />
       </header>
 
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-lg mx-auto space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -104,7 +104,7 @@ export default function KioskVisit() {
           <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 text-sm text-amber-700 dark:text-amber-400">
             <div className="flex items-center gap-2 font-bold mb-1.5">
               <FaClock size={14} />
-              Provincial Visiting Hours
+              Mutare Provincial Visiting Hours
             </div>
             <p>Mon-Fri: 2PM - 4PM</p>
             <p>Weekends: 10AM - 12PM, 2PM - 4PM</p>

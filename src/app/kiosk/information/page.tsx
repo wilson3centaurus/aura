@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
@@ -57,7 +57,7 @@ function InformationContent() {
   const filteredInfo = info.filter(i => i.category === activeTab)
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
 
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
@@ -69,7 +69,7 @@ function InformationContent() {
         </button>
         <div className="flex-1">
           <h1 className="text-white font-bold text-base leading-tight">Hospital Information</h1>
-          <p className="text-white/65 text-xs">Services, fees & policies — Mutare Provincial Hospital</p>
+          <p className="text-white/65 text-xs">Services, fees & policies â€” Mutare Provincial Hospital</p>
         </div>
         <MdInfo className="text-white/60 text-2xl" />
       </header>
@@ -90,7 +90,7 @@ function InformationContent() {
         })}
       </div>
 
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-48">
             <div className="flex flex-col items-center gap-3 text-gray-400">
@@ -147,7 +147,7 @@ function InformationContent() {
 
 export default function KioskInformation() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-gray-500 animate-pulse">Loading...</p></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-gray-500 animate-pulse">Loading...</p></div>}>
       <InformationContent />
     </Suspense>
   )

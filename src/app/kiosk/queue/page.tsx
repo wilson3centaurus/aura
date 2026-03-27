@@ -53,7 +53,7 @@ export default function KioskQueue() {
     : queue
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
 
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
@@ -70,7 +70,7 @@ export default function KioskQueue() {
         <FaTicket className="text-white/60 text-2xl" />
       </header>
 
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-y-auto">
         {/* Search */}
         <div className="max-w-2xl mx-auto mb-4">
           <div className="relative">

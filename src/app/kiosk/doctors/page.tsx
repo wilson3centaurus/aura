@@ -138,7 +138,7 @@ export default function KioskDoctors() {
       (typeof window !== 'undefined' ? window.location.origin : '')
     const trackUrl = `${baseUrl}/kiosk/track?qr=${bookingResult.qrCode}`
     return (
-      <div className="flex flex-col min-h-screen bg-white dark:bg-[#0a0a0a]">
+      <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
         <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4 flex items-center gap-3">
           <div className="flex-1">
             <p className="text-white/60 text-[10px] uppercase tracking-widest">Appointment Booked</p>
@@ -150,7 +150,7 @@ export default function KioskDoctors() {
           </button>
         </header>
 
-        <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+        <main className="flex-1 flex flex-col items-center justify-center p-6 gap-6 overflow-y-auto">
           <div className="bg-white dark:bg-[#111] rounded-3xl border border-gray-200 dark:border-[#222] p-6 w-full max-w-sm text-center shadow-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs font-bold mb-4">
               ⏳ Awaiting doctor confirmation
@@ -200,7 +200,7 @@ export default function KioskDoctors() {
   if (bookingDoctor) {
     const sc = STATUS_CONFIG[bookingDoctor.status] || STATUS_CONFIG.OFFLINE
     return (
-      <div className="flex flex-col min-h-screen bg-white dark:bg-[#0a0a0a]">
+      <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
         <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4 flex items-center gap-3">
           <button onClick={() => setBookingDoctor(null)} className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -309,7 +309,7 @@ export default function KioskDoctors() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-white dark:bg-[#0a0a0a]">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
       <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4">
         <div className="flex items-center gap-3 mb-3">
           <button onClick={() => router.push('/kiosk/menu')}
@@ -357,7 +357,7 @@ export default function KioskDoctors() {
         ))}
       </div>
 
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-8 h-8 rounded-full border-2 border-[#003d73] border-t-transparent animate-spin" />

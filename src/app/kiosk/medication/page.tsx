@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -51,7 +51,7 @@ export default function KioskMedication() {
   )
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
 
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
@@ -63,7 +63,7 @@ export default function KioskMedication() {
         </button>
         <div className="flex-1">
           <h1 className="text-white font-bold text-base leading-tight">Medication Availability</h1>
-          <p className="text-white/65 text-xs">Check pharmacy stock — Mutare Provincial Hospital</p>
+          <p className="text-white/65 text-xs">Check pharmacy stock â€” Mutare Provincial Hospital</p>
         </div>
         <FaPills className="text-white/60 text-2xl" />
       </header>
@@ -83,12 +83,12 @@ export default function KioskMedication() {
       </div>
 
       {/* Content */}
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-48">
             <div className="flex flex-col items-center gap-3 text-gray-400 dark:text-gray-600">
               <FaPills className="text-4xl animate-pulse-soft" />
-              <p className="text-sm font-medium animate-pulse-soft">Loading medications…</p>
+              <p className="text-sm font-medium animate-pulse-soft">Loading medicationsâ€¦</p>
             </div>
           </div>
         ) : (
@@ -102,7 +102,7 @@ export default function KioskMedication() {
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-800 dark:text-gray-100 text-sm leading-snug">{med.name}</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{med.form} · {med.dosage}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{med.form} Â· {med.dosage}</p>
                     </div>
                   </div>
                   <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -150,7 +150,7 @@ export default function KioskMedication() {
               <p className="font-bold text-emerald-800 dark:text-emerald-300 text-sm">Navigate to Pharmacy</p>
               <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 flex items-center gap-1.5 mt-0.5">
                 <MdAccessTime size={12} />
-                Main Pharmacy · Ground Floor · Mon-Fri 8AM-5PM
+                Main Pharmacy Â· Ground Floor Â· Mon-Fri 8AM-5PM
               </p>
             </div>
             <FaChevronLeft className="text-emerald-400 rotate-180" size={12} />

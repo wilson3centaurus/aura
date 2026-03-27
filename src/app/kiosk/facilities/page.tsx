@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -53,7 +53,7 @@ export default function KioskFacilities() {
   const meta = (category: string) => CATEGORY_META[category] ?? CATEGORY_META.default
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
 
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
@@ -65,18 +65,18 @@ export default function KioskFacilities() {
         </button>
         <div className="flex-1">
           <h1 className="text-white font-bold text-base leading-tight">Find Facilities</h1>
-          <p className="text-white/65 text-xs">Maps & directions — Mutare Provincial Hospital</p>
+          <p className="text-white/65 text-xs">Maps & directions â€” Mutare Provincial Hospital</p>
         </div>
         <FaMapLocationDot className="text-white/60 text-2xl" />
       </header>
 
       {/* Content */}
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-48">
             <div className="flex flex-col items-center gap-3 text-gray-400 dark:text-gray-600">
               <FaLocationDot className="text-4xl animate-pulse-soft" />
-              <p className="text-sm font-medium animate-pulse-soft">Loading locations…</p>
+              <p className="text-sm font-medium animate-pulse-soft">Loading locationsâ€¦</p>
             </div>
           </div>
         ) : pins.length === 0 ? (
@@ -84,7 +84,7 @@ export default function KioskFacilities() {
             <FaMapLocationDot className="text-5xl text-gray-300 dark:text-gray-700 mb-3" />
             <p className="font-semibold text-gray-500 dark:text-gray-400">No locations configured yet</p>
             <p className="text-sm text-gray-400 dark:text-gray-600 mt-1">
-              The hospital admin can add facility locations via the Admin Portal → Map Management.
+              The hospital admin can add facility locations via the Admin Portal â†’ Map Management.
             </p>
           </div>
         ) : (

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -78,7 +78,7 @@ export default function KioskSymptoms() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
 
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
@@ -103,7 +103,7 @@ export default function KioskSymptoms() {
         <p className="text-xs text-amber-700 dark:text-amber-400">This is not a diagnosis. Please consult a doctor for medical advice.</p>
       </div>
 
-      <main className="flex-1 p-4">
+      <main className="flex-1 p-4 overflow-y-auto">
 
         {step === 'category' && (
           <div className="max-w-2xl mx-auto">
@@ -132,13 +132,13 @@ export default function KioskSymptoms() {
                 How severe is it? (1-10)
               </label>
               <div className="flex items-center gap-3">
-                <span className="text-xl">😊</span>
+                <span className="text-xl">ðŸ˜Š</span>
                 <input
                   type="range" min="1" max="10" value={severity}
                   onChange={e => setSeverity(parseInt(e.target.value))}
                   className="flex-1 h-3 rounded-full appearance-none bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 cursor-pointer"
                 />
-                <span className="text-xl">😫</span>
+                <span className="text-xl">ðŸ˜«</span>
                 <span className="text-2xl font-black text-gray-800 dark:text-gray-100 w-8 text-center">{severity}</span>
               </div>
             </div>

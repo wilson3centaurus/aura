@@ -78,7 +78,7 @@ function TrackContent() {
 
   if (!qr) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-white dark:bg-[#0a0a0a]">
+      <div className="flex flex-col items-center justify-center h-full p-6 bg-white dark:bg-[#0a0a0a]">
         <span className="text-5xl mb-4">🔍</span>
         <h2 className="text-lg font-black text-gray-900 dark:text-white mb-2">No QR Code Provided</h2>
         <p className="text-sm text-gray-500 text-center mb-6">Please scan your QR ticket or enter the tracking code manually.</p>
@@ -92,7 +92,7 @@ function TrackContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-white dark:bg-[#0a0a0a]">
+      <div className="flex flex-col items-center justify-center h-full bg-white dark:bg-[#0a0a0a]">
         <div className="w-10 h-10 rounded-full border-2 border-[#003d73] border-t-transparent animate-spin mb-4" />
         <p className="text-sm text-gray-500">Fetching appointment details...</p>
       </div>
@@ -101,7 +101,7 @@ function TrackContent() {
 
   if (error || !appointment) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-white dark:bg-[#0a0a0a]">
+      <div className="flex flex-col items-center justify-center h-full p-6 bg-white dark:bg-[#0a0a0a]">
         <span className="text-5xl mb-4">❓</span>
         <h2 className="text-lg font-black text-gray-900 dark:text-white mb-2">Appointment Not Found</h2>
         <p className="text-sm text-gray-500 text-center mb-6">{error || 'The QR code may be invalid or expired.'}</p>
@@ -120,7 +120,7 @@ function TrackContent() {
   const ui = STATUS_UI[appointment.status] || STATUS_UI.PENDING
 
   return (
-    <div className="flex flex-col min-h-screen bg-white dark:bg-[#0a0a0a]">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
       {/* Header */}
       <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4">
         <div className="flex items-center gap-3 mb-1">
@@ -152,7 +152,7 @@ function TrackContent() {
         )}
       </header>
 
-      <main className="flex-1 p-5 space-y-4 max-w-lg mx-auto w-full">
+      <main className="flex-1 p-5 space-y-4 max-w-lg mx-auto w-full overflow-y-auto">
         {/* Status Banner */}
         <div className={`rounded-2xl border p-4 flex items-start gap-3 ${ui.bg}`}>
           <span className="text-2xl mt-0.5">{ui.icon}</span>
@@ -259,7 +259,7 @@ function TrackContent() {
 export default function KioskTrackPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-[#0a0a0a]">
+      <div className="flex items-center justify-center h-full bg-white dark:bg-[#0a0a0a]">
         <div className="w-10 h-10 rounded-full border-2 border-[#003d73] border-t-transparent animate-spin" />
       </div>
     }>
