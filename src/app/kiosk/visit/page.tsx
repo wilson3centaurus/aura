@@ -1,15 +1,25 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FaChevronLeft, FaMagnifyingGlass, FaCheck, FaXmark, FaClock } from 'react-icons/fa6'
 import { MdPersonSearch, MdLocalHospital } from 'react-icons/md'
 
 export default function KioskVisit() {
   const router = useRouter()
+
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<any[] | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Fetch all admitted patients on mount
+  useEffect(() => {
+    setLoading(true)
+    fetch('/api/patients')
+      .then(res => res.json())
+      .then(data => { setResults(data); setLoading(false) })
+      .catch(() => { setResults([]); setLoading(false) })
+  }, [])
 
   const searchPatient = async () => {
     if (!search.trim()) return
@@ -62,6 +72,16 @@ export default function KioskVisit() {
             </button>
           </div>
 
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 text-sm text-amber-700 dark:text-amber-400">
+            <div className="flex items-center gap-2 font-bold mb-1.5">
+              <FaClock size={14} />
+              Mutare Provincial Visiting Hours
+            </div>
+            <p>Mon-Fri: 2PM - 4PM</p>
+            <p>Weekends: 10AM - 12PM, 2PM - 4PM</p>
+            <p className="mt-1 text-xs opacity-75">Please bring a valid ID when visiting.</p>
+          </div>
+          
           {results !== null && (
             <div className="space-y-3">
               {results.length > 0 ? results.map((patient: any) => (
@@ -77,10 +97,10 @@ export default function KioskVisit() {
                   </div>
                   <div className="space-y-1.5 text-sm ml-13">
                     <p className="text-gray-600 dark:text-gray-300">
-                      <strong>Ward:</strong> {patient.ward}
+                      <strong>Ward:</strong> {patient.ward?.name || '-'}
                     </p>
                     <p className="text-gray-600 dark:text-gray-300">
-                      <strong>Room:</strong> {patient.room}, Bed {patient.bed}
+                      <strong>Room:</strong> {patient.room || '-'}, Bed {patient.bed?.bed_number || '-'}
                     </p>
                   </div>
                   <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold ${
@@ -101,15 +121,7 @@ export default function KioskVisit() {
             </div>
           )}
 
-          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 text-sm text-amber-700 dark:text-amber-400">
-            <div className="flex items-center gap-2 font-bold mb-1.5">
-              <FaClock size={14} />
-              Mutare Provincial Visiting Hours
-            </div>
-            <p>Mon-Fri: 2PM - 4PM</p>
-            <p>Weekends: 10AM - 12PM, 2PM - 4PM</p>
-            <p className="mt-1 text-xs opacity-75">Please bring a valid ID when visiting.</p>
-          </div>
+          
         </div>
       </main>
     </div>

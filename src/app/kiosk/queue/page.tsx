@@ -49,7 +49,7 @@ export default function KioskQueue() {
   }
 
   const filtered = ticketSearch
-    ? queue.filter(q => q.ticketNumber.toString().includes(ticketSearch))
+    ? queue.filter(q => q.ticketNumber && q.ticketNumber.toString().includes(ticketSearch))
     : queue
 
   return (
