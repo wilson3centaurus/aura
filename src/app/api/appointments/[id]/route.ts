@@ -75,11 +75,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const doctorId = data.doctor_id
 
     if (status === 'ACCEPTED') {
-      // Doctor accepted an appointment → set BUSY
-      await supabase
-        .from('doctors')
-        .update({ status: 'BUSY' })
-        .eq('id', doctorId)
+      // Check if scheduled_at is roughly "now" (within 10 minutes)
+      const scheduledMs = updates.scheduled_at ? new Date(updates.scheduled_at as string).getTime() : Date.now()
+      const diffMin = Math.abs(scheduledMs - Date.now()) / 60000
+
+      if (diffMin <= 10) {
+        // Doctor accepted an immediate appointment → set BUSY
+        await supabase
+          .from('doctors')
+          .update({ status: 'BUSY' })
+          .eq('id', doctorId)
+      }
     } else if (status === 'COMPLETED' || status === 'DECLINED' || status === 'CANCELLED') {
       // Check if doctor still has other ACCEPTED appointments
       const { data: otherActive } = await supabase
