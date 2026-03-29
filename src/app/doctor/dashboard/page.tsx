@@ -278,9 +278,17 @@ export default function DoctorDashboard() {
   const [acceptDateTime, setAcceptDateTime] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
+  // Reschedule modal
+  const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null)
+  const [rescheduleTime, setRescheduleTime] = useState('')
+  const [rescheduleLoading, setRescheduleLoading] = useState(false)
+
   // Toast
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const toastFiredFor = useRef<Set<string>>(new Set())
+
+  // Settings
+  const [settings, setSettings] = useState<Record<string, string>>({})
 
   // Conflict modal (appointment due while busy)
   const [conflictAppt, setConflictAppt] = useState<Appointment | null>(null)
@@ -290,14 +298,16 @@ export default function DoctorDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [docRes, apptRes, queueRes] = await Promise.all([
+      const [docRes, apptRes, queueRes, setRes] = await Promise.all([
         fetch('/api/doctors/me'),
         fetch('/api/appointments?mine=true'),
         fetch('/api/queue?mine=true'),
+        fetch('/api/settings'),
       ])
       if (docRes.ok) setProfile(await docRes.json())
       if (apptRes.ok) setAppointments(await apptRes.json())
       if (queueRes.ok) setQueue(await queueRes.json())
+      if (setRes.ok) setSettings(await setRes.json())
     } catch {}
     setLoading(false)
   }, [])
@@ -323,6 +333,31 @@ export default function DoctorDashboard() {
 
   const handleAction = async () => {
     if (!selectedAppt || !actionMode) return
+
+    // Schedule validation for custom time
+    if (actionMode === 'accept' && acceptTime === 'custom' && acceptDateTime) {
+      const dt = new Date(acceptDateTime)
+      const hr = dt.getHours()
+      const min = dt.getMinutes()
+      const t = hr + min / 60
+
+      const [wStartStr, wEndStr] = (settings.doc_hours || '08:00-17:00').split('-')
+      const [lStartStr, lEndStr] = (settings.doc_lunch || '13:00-14:00').split('-')
+      
+      const p = (s: string) => parseInt(s.split(':')[0]) + parseInt(s.split(':')[1]) / 60
+      const wS = p(wStartStr), wE = p(wEndStr)
+      const lS = p(lStartStr), lE = p(lEndStr)
+
+      if (t < wS || t >= wE) {
+        setToastMsg(`Cannot explicitly schedule outside work hours (${wStartStr} - ${wEndStr})`)
+        return
+      }
+      if (t >= lS && t < lE) {
+        setToastMsg(`Cannot explicitly schedule during lunch hours (${lStartStr} - ${lEndStr})`)
+        return
+      }
+    }
+
     setActionLoading(true)
     try {
       if (actionMode === 'accept') {
@@ -617,6 +652,11 @@ export default function DoctorDashboard() {
                       }}
                     />
                   )}
+                  <button onClick={() => { setRescheduleAppt(a); setRescheduleTime(''); setRescheduleLoading(false) }}
+                    className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors flex-shrink-0"
+                    title="Reschedule">
+                    🗓️
+                  </button>
                 </div>
               ))}
 
@@ -651,6 +691,58 @@ export default function DoctorDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Reschedule Modal */}
+      {rescheduleAppt && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl border border-gray-200 dark:border-[#282828] shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-base font-black text-gray-900 dark:text-white mb-1">
+              🗓️ Reschedule Appointment
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Patient: <strong>{rescheduleAppt.patient_name}</strong>
+            </p>
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Select new time:</p>
+              <input type="datetime-local" value={rescheduleTime}
+                onChange={e => setRescheduleTime(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setRescheduleAppt(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-[#333] text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
+                Cancel
+              </button>
+              <button 
+                onClick={async () => {
+                  if (!rescheduleTime) return
+                  const dt = new Date(rescheduleTime)
+                  const t = dt.getHours() + dt.getMinutes() / 60
+                  const [wS, wE] = (settings.doc_hours || '08:00-17:00').split('-').map(s => parseInt(s.split(':')[0]) + parseInt(s.split(':')[1]) / 60)
+                  const [lS, lE] = (settings.doc_lunch || '13:00-14:00').split('-').map(s => parseInt(s.split(':')[0]) + parseInt(s.split(':')[1]) / 60)
+                  if (t < wS || t >= wE) return setToastMsg('Cannot reschedule outside work hours')
+                  if (t >= lS && t < lE) return setToastMsg('Cannot reschedule during lunch hours')
+
+                  setRescheduleLoading(true)
+                  try {
+                    await fetch(`/api/appointments/${rescheduleAppt.id}`, {
+                      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ scheduledAt: new Date(rescheduleTime).toISOString() }),
+                    })
+                    setRescheduleAppt(null)
+                    loadData()
+                  } catch {}
+                  setRescheduleLoading(false)
+                }}
+                disabled={rescheduleLoading || !rescheduleTime}
+                className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
+                {rescheduleLoading ? 'Saving...' : 'Confirm Reschedule'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Accept / Decline Modal */}
       {selectedAppt && actionMode && (

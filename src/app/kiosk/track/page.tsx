@@ -61,6 +61,7 @@ function TrackContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
 
   const fetchStatus = async (silent = false) => {
@@ -89,6 +90,22 @@ function TrackContent() {
     const interval = setInterval(() => fetchStatus(true), 15000)
     return () => clearInterval(interval)
   }, [qr])
+
+  const handleCancel = async () => {
+    if (!appointment || !confirm('Are you sure you want to cancel this appointment?')) return
+    setCancelling(true)
+    try {
+      await fetch(`/api/appointments/${appointment.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED' })
+      })
+      await fetchStatus(true)
+    } catch {
+      alert('Failed to cancel appointment. Please try again.')
+    }
+    setCancelling(false)
+  }
 
   if (!qr) {
     return (
@@ -280,21 +297,32 @@ function TrackContent() {
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
-          {appointment.status === 'DECLINED' && (
-            <button onClick={() => router.push('/kiosk/doctors')}
-              className="flex-1 py-3.5 rounded-2xl bg-[#003d73] text-white font-black text-sm">
-              Book Another Doctor
+        <div className="flex flex-col gap-3 mt-6">
+          <div className="flex gap-3">
+            {appointment.status === 'DECLINED' && (
+              <button onClick={() => router.push('/kiosk/doctors')}
+                className="flex-1 py-3.5 rounded-2xl bg-[#003d73] text-white font-black text-sm">
+                Book Another Doctor
+              </button>
+            )}
+            <button onClick={() => router.push('/kiosk/menu')}
+              className="flex-1 py-3.5 rounded-2xl border border-gray-200 dark:border-[#222] text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-[#111] transition-colors">
+              Back to Menu
+            </button>
+          </div>
+          
+          {(appointment.status === 'PENDING' || appointment.status === 'ACCEPTED') && (
+            <button 
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="w-full py-3 rounded-2xl border border-rose-200 dark:border-rose-900/30 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 font-bold text-xs transition-colors disabled:opacity-50">
+              {cancelling ? 'Cancelling...' : 'Cancel Appointment'}
             </button>
           )}
-          <button onClick={() => router.push('/kiosk/menu')}
-            className="flex-1 py-3.5 rounded-2xl border border-gray-200 dark:border-[#222] text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-[#111] transition-colors">
-            Back to Menu
-          </button>
         </div>
 
-        <p className="text-center text-[10px] text-gray-300 dark:text-gray-600 pb-4">
-          Appointment ID: {appointment.id.slice(0, 8).toUpperCase()}
+        <p className="text-center text-[10px] text-gray-300 dark:text-gray-600 pb-4 mt-6">
+          Appointment ID: {appointment.id.toUpperCase()}
         </p>
       </main>
     </div>

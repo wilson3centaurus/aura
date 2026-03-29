@@ -260,6 +260,7 @@ export default function AdminDashboard() {
               {pendingAppts.map((a: any) => (
                 <div key={a.id} className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30">
                   <p className="text-xs font-bold text-gray-900 dark:text-white">{a.patient_name}</p>
+                  <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">To: Dr. {a.doctor?.user?.name || 'Unknown'}</p>
                   <p className="text-[10px] text-gray-500 mt-0.5">{a.symptoms || 'No symptoms listed'}</p>
                   <p className="text-[10px] text-gray-400 mt-1">
                     {new Date(a.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}

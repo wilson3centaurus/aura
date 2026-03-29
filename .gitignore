@@ -10,7 +10,7 @@ prisma/*.db-journal
 out/
 
 # env
-.env.local
+.env
 
 # misc
 .DS_Store

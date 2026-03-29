@@ -45,11 +45,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  const generateShortCode = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    const dl = () => letters[Math.floor(Math.random() * letters.length)]
+    const n = Math.floor(Math.random() * 90) + 10
+    return `${dl()}${dl()}${n}`
+  }
+
+  let id = ''
+  for (let i = 0; i < 5; i++) {
+    id = generateShortCode()
+    const { count } = await supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('id', id)
+    if (count === 0) break
+  }
+
   const qrCode = crypto.randomUUID()
 
   const { data: appointment, error } = await supabase
     .from('appointments')
     .insert({
+      id,
       patient_name: patientName,
       patient_phone: patientPhone || null,
       symptoms: symptoms || null,

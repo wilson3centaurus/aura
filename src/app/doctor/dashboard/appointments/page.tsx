@@ -42,6 +42,9 @@ export default function DoctorAppointmentsPage() {
   const [historyFilter, setHistoryFilter] = useState<'accepted' | 'declined' | 'completed'>('accepted')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Settings
+  const [settings, setSettings] = useState<Record<string, string>>({})
+
   // Accept/Decline modal
   const [selected, setSelected] = useState<Appointment | null>(null)
   const [actionMode, setActionMode] = useState<'accept' | 'decline' | null>(null)
@@ -52,15 +55,19 @@ export default function DoctorAppointmentsPage() {
   const [actionLoading, setActionLoading] = useState(false)
 
   const loadData = useCallback(async () => {
-    const [profileRes, allRes] = await Promise.all([
+    const [profileRes, allRes, setRes] = await Promise.all([
       fetch('/api/doctors/me'),
       fetch('/api/appointments'),
+      fetch('/api/settings'),
     ])
     if (profileRes.ok && allRes.ok) {
       const profile = await profileRes.json()
       const all: Appointment[] = await allRes.json()
       const mine = all.filter((a: any) => a.doctor_id === profile.id)
       setAppointments(mine.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+    }
+    if (setRes && setRes.ok) {
+      setSettings(await setRes.json())
     }
     setLoading(false)
   }, [])
@@ -73,6 +80,30 @@ export default function DoctorAppointmentsPage() {
 
   const handleAction = async () => {
     if (!selected || !actionMode) return
+
+    if (actionMode === 'accept' && acceptTime === 'custom' && acceptDateTime) {
+      const dt = new Date(acceptDateTime)
+      const hr = dt.getHours()
+      const min = dt.getMinutes()
+      const t = hr + min / 60
+
+      const [wStartStr, wEndStr] = (settings.doc_hours || '08:00-17:00').split('-')
+      const [lStartStr, lEndStr] = (settings.doc_lunch || '13:00-14:00').split('-')
+      
+      const p = (s: string) => parseInt(s.split(':')[0]) + parseInt(s.split(':')[1]) / 60
+      const wS = p(wStartStr), wE = p(wEndStr)
+      const lS = p(lStartStr), lE = p(lEndStr)
+
+      if (t < wS || t >= wE) {
+        alert(`Cannot schedule outside work hours (${wStartStr} - ${wEndStr})`)
+        return
+      }
+      if (t >= lS && t < lE) {
+        alert(`Cannot schedule during lunch hours (${lStartStr} - ${lEndStr})`)
+        return
+      }
+    }
+
     setActionLoading(true)
     try {
       if (actionMode === 'accept') {

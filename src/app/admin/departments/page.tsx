@@ -72,7 +72,7 @@ export default function AdminDepartments() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editDept, setEditDept] = useState<Department | null>(null)
-  const [editForm, setEditForm] = useState({ name: '', location: '', floor: 'Ground Floor', description: '', openTime: '08:00', closeTime: '17:00', writtenDirections: '' })
+  const [editForm, setEditForm] = useState({ name: '', location: '', floor: 'Ground Floor', description: '', openTime: '08:00', closeTime: '17:00', writtenDirections: '', latitude: '', longitude: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [assigningDoctor, setAssigningDoctor] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -87,6 +87,10 @@ export default function AdminDepartments() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const markerRef = useRef<google.maps.Marker | null>(null)
+  
+  const editMapRef = useRef<HTMLDivElement>(null)
+  const editMapInstanceRef = useRef<google.maps.Map | null>(null)
+  const editMarkerRef = useRef<google.maps.Marker | null>(null)
 
   const loadData = async () => {
     const [data, docsData] = await Promise.all([
@@ -110,6 +114,8 @@ export default function AdminDepartments() {
       openTime: dept.open_time,
       closeTime: dept.close_time,
       writtenDirections: dept.written_directions || '',
+      latitude: dept.latitude ? String(dept.latitude) : '',
+      longitude: dept.longitude ? String(dept.longitude) : '',
     })
   }
 
@@ -182,6 +188,54 @@ export default function AdminDepartments() {
       })
     })
     setMapReady(true)
+  }
+
+  // Load Google Maps for Edit Modal
+  useEffect(() => {
+    if (!editDept) return
+    const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || 'AIzaSyBG5lqhexFFst2w4cc5Nw9OKdo29SAWc9g'
+    if (window.google?.maps) { initEditMap(); return }
+    const script = document.createElement('script')
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&libraries=places`
+    script.async = true
+    script.onload = () => initEditMap()
+    document.head.appendChild(script)
+  }, [editDept])
+
+  function initEditMap() {
+    if (!editMapRef.current || !editDept) return
+    
+    const lat = editDept.latitude || parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LAT || '-18.963694')
+    const lng = editDept.longitude || parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LNG || '32.663358')
+    const center = { lat, lng }
+    
+    const map = new window.google.maps.Map(editMapRef.current, {
+      zoom: editDept.latitude ? 18 : 16, center,
+      mapTypeId: 'satellite',
+      disableDefaultUI: true,
+      zoomControl: true,
+    })
+    editMapInstanceRef.current = map
+
+    if (editDept.latitude && editDept.longitude) {
+      editMarkerRef.current = new window.google.maps.Marker({
+        position: center, map,
+        title: editDept.name,
+        icon: { url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' },
+      })
+    }
+
+    map.addListener('click', (e: google.maps.MapMouseEvent) => {
+      const newLat = e.latLng?.lat() ?? 0
+      const newLng = e.latLng?.lng() ?? 0
+      setEditForm(f => ({ ...f, latitude: newLat.toFixed(6), longitude: newLng.toFixed(6) }))
+      if (editMarkerRef.current) editMarkerRef.current.setMap(null)
+      editMarkerRef.current = new window.google.maps.Marker({
+        position: { lat: newLat, lng: newLng }, map,
+        title: 'New Location',
+        icon: { url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' },
+      })
+    })
   }
 
   const addDepartment = async (e: React.FormEvent) => {
@@ -407,6 +461,19 @@ export default function AdminDepartments() {
                   className="col-span-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none" />
                 <textarea placeholder="Written directions (optional)" value={editForm.writtenDirections} onChange={e => setEditForm({ ...editForm, writtenDirections: e.target.value })} rows={2}
                   className="col-span-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none" />
+              </div>
+
+              {/* Map coordinate capture for Edit */}
+              <div>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                  Map Location <span className="font-normal text-gray-400">— click on the map to update department coordinates</span>
+                </p>
+                <div ref={editMapRef} className="w-full h-48 rounded-xl overflow-hidden border border-gray-200 dark:border-[#333] bg-gray-100 dark:bg-[#1a1a1a]" />
+                {editForm.latitude && editForm.longitude && (
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1.5 font-mono">
+                    ✓ Pinned: {editForm.latitude}, {editForm.longitude}
+                  </p>
+                )}
               </div>
 
               <button type="submit" disabled={savingEdit}
