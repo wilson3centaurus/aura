@@ -2,9 +2,41 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
+/** Return minutes since midnight for a "HH:MM" time string */
+function toMins(t: string) {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+
+/** Check if nowMinutes is within [start, end) */
+function timeInRange(nowMinutes: number, startStr: string, endStr: string) {
+  return nowMinutes >= toMins(startStr) && nowMinutes < toMins(endStr)
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const onlyActivated = searchParams.get('activated') === 'true'
+
+  // Fetch schedule settings stored in HospitalInfo with category = 'settings'
+  const { data: settingsRows } = await supabase
+    .from('hospital_info')
+    .select('key, value')
+    .eq('category', 'settings')
+
+  const settings: Record<string, string> = {}
+  for (const row of settingsRows ?? []) settings[row.key] = row.value
+
+  const workStart  = settings.workStartTime  || '06:00'
+  const workEnd    = settings.workEndTime    || '19:00'
+  const lunchStart = settings.lunchStartTime || '13:00'
+  const lunchEnd   = settings.lunchEndTime   || '14:00'
+
+  // Current time in minutes since midnight
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+
+  const isWorkTime  = timeInRange(nowMinutes, workStart, workEnd)
+  const isLunchTime = timeInRange(nowMinutes, lunchStart, lunchEnd)
 
   const { data: doctors, error } = await supabase
     .from('doctors')
@@ -29,11 +61,23 @@ export async function GET(request: NextRequest) {
   })
 
   const result = doctors
-    ?.map(d => ({
-      ...d,
-      is_activated: !!(d.user?.profile_image && d.latitude != null && d.user?.password_changed),
-      _count: { queueEntries: countMap[d.id] || 0 },
-    }))
+    ?.map(d => {
+      // Apply schedule overrides — BUSY is always protected
+      let effectiveStatus = d.status
+      if (effectiveStatus !== 'BUSY') {
+        if (!isWorkTime) {
+          effectiveStatus = 'OFFLINE'
+        } else if (isLunchTime) {
+          effectiveStatus = 'ON_BREAK'
+        }
+      }
+      return {
+        ...d,
+        status: effectiveStatus,
+        is_activated: !!(d.user?.profile_image && d.latitude != null && d.user?.password_changed),
+        _count: { queueEntries: countMap[d.id] || 0 },
+      }
+    })
     .filter(d => !onlyActivated || d.is_activated)
 
   return NextResponse.json(result)

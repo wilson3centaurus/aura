@@ -1,19 +1,13 @@
 'use client'
 /**
  * VoiceChat – ChatGPT-style push-to-talk AI assistant.
- *
- * Flow:
- *   1. Patient taps the mic button → Web Speech API records speech → text
- *   2. Text is sent to /api/voice-chat (Gemini 1.5 Flash)
- *   3. AI text response is spoken back via Web Speech API TTS
- *   4. If the AI decides to navigate, it returns { navigate: "/kiosk/..." }
- *
- * Requirements:
- *   GEMINI_API_KEY in .env            (server-side, never exposed)
+ * Set NEXT_PUBLIC_DISABLE_VOICE="true" to disable during testing.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import AuraLogo from './AuraLogo'
+
+const VOICE_DISABLED = process.env.NEXT_PUBLIC_DISABLE_VOICE === 'true'
 
 type Message = { role: 'user' | 'assistant'; text: string }
 type Phase = 'idle' | 'recording' | 'thinking' | 'speaking'
@@ -47,6 +41,33 @@ interface Props {
 }
 
 export default function VoiceChat({ onClose, onNavigate }: Props) {
+  // If voice is disabled, show a simple disabled screen
+  if (VOICE_DISABLED) {
+    return (
+      <div
+        className="fixed inset-0 z-[500] flex flex-col items-center justify-center gap-6"
+        style={{ background: 'linear-gradient(160deg, #0a0f1e 0%, #0d1b35 60%, #091628 100%)' }}
+      >
+        <AuraLogo size={48} showText />
+        <div className="text-center px-8 space-y-2">
+          <p className="text-white font-bold text-lg">Voice Assistant Disabled</p>
+          <p className="text-blue-400/70 text-sm">Voice is turned off in testing mode.</p>
+          <p className="text-blue-400/50 text-xs">Set NEXT_PUBLIC_DISABLE_VOICE=false in .env to enable.</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors"
+        >
+          Go Back
+        </button>
+      </div>
+    )
+  }
+
+  return <VoiceChatInner onClose={onClose} onNavigate={onNavigate} />
+}
+
+function VoiceChatInner({ onClose, onNavigate }: Props) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [messages, setMessages] = useState<Message[]>([])
   const [transcript, setTranscript] = useState('')
@@ -75,7 +96,6 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
     const utter = new SpeechSynthesisUtterance(text)
     utter.rate = 1.05
     utter.pitch = 1
-    // Prefer a natural-sounding English voice
     const voices = window.speechSynthesis.getVoices()
     const preferred = voices.find(v => v.lang.startsWith('en') && v.localService) ?? voices[0]
     if (preferred) utter.voice = preferred
@@ -158,7 +178,6 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
       if (isMounted.current) setPhase('idle')
     }
 
-    // Patch to capture final transcript before onend fires
     recognition.addEventListener('result', (event: any) => {
       let final = ''
       for (let i = 0; i < event.results.length; i++) {
@@ -170,14 +189,8 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
     recognition.start()
   }, [transcript, sendToAI])
 
-  const stopRecording = useCallback(() => {
-    recognitionRef.current?.stop()
-  }, [])
-
-  const stopSpeaking = useCallback(() => {
-    window.speechSynthesis?.cancel()
-    setPhase('idle')
-  }, [])
+  const stopRecording = useCallback(() => { recognitionRef.current?.stop() }, [])
+  const stopSpeaking = useCallback(() => { window.speechSynthesis?.cancel(); setPhase('idle') }, [])
 
   const phaseLabel: Record<Phase, string> = {
     idle: 'Tap the mic to speak',
@@ -191,12 +204,8 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
       className="fixed inset-0 z-[500] flex flex-col"
       style={{ background: 'linear-gradient(160deg, #0a0f1e 0%, #0d1b35 60%, #091628 100%)' }}
     >
-      {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-6 pt-6 pb-4">
-        <button
-          onClick={onClose}
-          className="text-white/50 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
-        >
+        <button onClick={onClose} className="text-white/50 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
@@ -206,7 +215,6 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
         <div className="w-16" />
       </div>
 
-      {/* ── Messages ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-2 space-y-3">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-4 opacity-70">
@@ -239,7 +247,6 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
             </div>
           </div>
         ))}
-        {/* Live transcript preview */}
         {phase === 'recording' && transcript && (
           <div className="flex justify-end">
             <div className="max-w-[80%] rounded-2xl rounded-br-sm px-4 py-3 text-sm bg-blue-600/40 text-white/60 border border-blue-400/20 italic">
@@ -247,7 +254,6 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
             </div>
           </div>
         )}
-        {/* Thinking dots */}
         {phase === 'thinking' && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-sm px-5 py-3 bg-white/10 border border-white/10">
@@ -262,22 +268,16 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
         )}
       </div>
 
-      {/* ── Waveform ── */}
       <div className="flex justify-center py-3">
         <WaveformBars active={phase === 'recording' || phase === 'speaking'} />
       </div>
 
-      {/* ── Phase label ── */}
       <p className="text-center text-xs font-medium text-blue-400/70 -mt-1 mb-4 tracking-wide">
         {phaseLabel[phase]}
       </p>
 
-      {/* ── Error ── */}
-      {error && (
-        <p className="text-center text-xs text-red-400 mb-2 px-6">{error}</p>
-      )}
+      {error && <p className="text-center text-xs text-red-400 mb-2 px-6">{error}</p>}
 
-      {/* ── Main mic button ── */}
       <div className="flex flex-col items-center gap-4 pb-8">
         <button
           onPointerDown={phase === 'idle' ? startRecording : undefined}
@@ -299,18 +299,14 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
             }
           `}
         >
-          {/* Pulsing ring when recording */}
           {phase === 'recording' && (
             <span className="absolute inset-0 rounded-full border-2 border-red-400/60 animate-ping" />
           )}
           {phase === 'recording' ? (
-            /* Stop square */
             <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>
           ) : phase === 'speaking' ? (
-            /* Stop speaker */
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           ) : (
-            /* Mic */
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>

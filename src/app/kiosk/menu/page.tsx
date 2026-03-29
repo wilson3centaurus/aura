@@ -6,8 +6,8 @@ import AuraLogo from '@/components/AuraLogo'
 import { t } from '@/lib/i18n'
 import {
   FaUserDoctor, FaPills, FaClipboardList, FaCircleInfo,
-  FaPersonWalking, FaToilet, FaFileInvoiceDollar, FaTicket,
-  FaMicrophone, FaStop, FaChevronLeft
+  FaPersonWalking, FaToilet, FaTicket,
+  FaMicrophone, FaStop, FaChevronLeft, FaRobot,
 } from 'react-icons/fa6'
 
 export default function KioskMenu() {
@@ -20,14 +20,14 @@ export default function KioskMenu() {
   }, [])
 
   const MENU_ITEMS = [
-    { id: 'doctors',     label: t(lang, 'seeDoctor'),      subLabel: t(lang, 'seeDoctorSub'),       icon: FaUserDoctor,        href: '/kiosk/doctors',              color: 'from-blue-500 to-blue-700' },
-    { id: 'medication',  label: t(lang, 'getMedication'),  subLabel: t(lang, 'getMedicationSub'),   icon: FaPills,             href: '/kiosk/medication',           color: 'from-emerald-500 to-emerald-700' },
-    { id: 'symptoms',    label: t(lang, 'symptomCheck'),   subLabel: t(lang, 'symptomCheckSub'),    icon: FaClipboardList,     href: '/kiosk/symptoms',             color: 'from-orange-500 to-orange-700' },
-    { id: 'information', label: t(lang, 'hospitalInfo'),   subLabel: t(lang, 'hospitalInfoSub'),    icon: FaCircleInfo,        href: '/kiosk/information',          color: 'from-violet-500 to-violet-700' },
-    { id: 'visit',       label: t(lang, 'visitSomeone'),   subLabel: t(lang, 'visitSomeoneSub'),    icon: FaPersonWalking,     href: '/kiosk/visit',                color: 'from-pink-500 to-pink-700' },
-    { id: 'facilities',  label: t(lang, 'findFacilities'), subLabel: t(lang, 'findFacilitiesSub'),  icon: FaToilet,            href: '/kiosk/facilities',           color: 'from-cyan-500 to-cyan-700' },
-    { id: 'fees',        label: t(lang, 'medicalFees'),    subLabel: t(lang, 'medicalFeesSub'),     icon: FaFileInvoiceDollar, href: '/kiosk/information?tab=fees', color: 'from-amber-500 to-amber-700' },
-    { id: 'queue',       label: t(lang, 'checkQueue'),     subLabel: t(lang, 'checkQueueSub'),      icon: FaTicket,            href: '/kiosk/queue',                color: 'from-indigo-500 to-indigo-700' },
+    { id: 'doctors',     label: t(lang, 'seeDoctor'),      subLabel: t(lang, 'seeDoctorSub'),       icon: FaUserDoctor,    href: '/kiosk/doctors',     color: 'from-blue-500 to-blue-700' },
+    { id: 'medication',  label: t(lang, 'getMedication'),  subLabel: t(lang, 'getMedicationSub'),   icon: FaPills,         href: '/kiosk/medication',  color: 'from-emerald-500 to-emerald-700' },
+    { id: 'symptoms',    label: t(lang, 'symptomCheck'),   subLabel: t(lang, 'symptomCheckSub'),    icon: FaClipboardList, href: '/kiosk/symptoms',    color: 'from-orange-500 to-orange-700' },
+    { id: 'information', label: 'Hospital Info & Fees',    subLabel: 'Services, fees & policies',   icon: FaCircleInfo,    href: '/kiosk/information', color: 'from-violet-500 to-violet-700' },
+    { id: 'visit',       label: t(lang, 'visitSomeone'),   subLabel: t(lang, 'visitSomeoneSub'),    icon: FaPersonWalking, href: '/kiosk/visit',       color: 'from-pink-500 to-pink-700' },
+    { id: 'facilities',  label: t(lang, 'findFacilities'), subLabel: t(lang, 'findFacilitiesSub'),  icon: FaToilet,        href: '/kiosk/facilities',  color: 'from-cyan-500 to-cyan-700' },
+    { id: 'queue',       label: t(lang, 'checkQueue'),     subLabel: t(lang, 'checkQueueSub'),      icon: FaTicket,        href: '/kiosk/queue',       color: 'from-indigo-500 to-indigo-700' },
+    { id: 'assistant',   label: 'Talk to Assistant',       subLabel: 'Voice or chat 🤖',            icon: FaRobot,         href: '/kiosk/assistant',   color: 'from-rose-500 to-rose-700' },
   ]
 
   const startVoice = () => {
@@ -51,6 +51,7 @@ export default function KioskMenu() {
       else if (transcript.includes('toilet') || transcript.includes('bathroom') || transcript.includes('map') || transcript.includes('facilit')) router.push('/kiosk/facilities')
       else if (transcript.includes('fee') || transcript.includes('cost') || transcript.includes('price'))      router.push('/kiosk/information?tab=fees')
       else if (transcript.includes('queue') || transcript.includes('ticket') || transcript.includes('wait'))   router.push('/kiosk/queue')
+      else if (transcript.includes('assistant') || transcript.includes('help') || transcript.includes('chat')) router.push('/kiosk/assistant')
       else router.push('/kiosk/information')
     }
     recognition.onerror = () => setListening(false)

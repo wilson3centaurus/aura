@@ -28,12 +28,8 @@ export async function GET(request: NextRequest) {
         .single()
       if (doctor) query = query.eq('doctor_id', doctor.id)
     }
-    // Today's appointments
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    query = query.gte('scheduled_at', today.toISOString()).lt('scheduled_at', tomorrow.toISOString())
+    // Always show PENDING regardless of date; filter out old declined/completed
+    query = query.or('status.eq.PENDING,status.eq.ACCEPTED,status.eq.COMPLETED')
   }
 
   const { data: appointments, error } = await query

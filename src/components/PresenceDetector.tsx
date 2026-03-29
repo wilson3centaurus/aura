@@ -4,10 +4,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import AuraLogo from './AuraLogo'
 
-const MOTION_THRESHOLD = 18      // avg per-pixel diff to count as motion
-const CHECK_INTERVAL   = 900     // ms between frame checks
-const INACTIVITY_MS    = 60_000  // 60 s idle → return home
-const MOTION_DEBOUNCE  = 3       // consecutive motion frames before triggering
+const MOTION_THRESHOLD = 18
+const CHECK_INTERVAL   = 900
+const MOTION_DEBOUNCE  = 3
 
 const GREETINGS = [
   { line1: 'Welcome to Mutare Provincial Hospital', line2: 'Mauya kuMutare Provincial Hospital', sub: "I'm AURA — your hospital service assistant." },
@@ -30,7 +29,10 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
   const [wasPresent, setWasPresent]     = useState(false)
   const [greeting]  = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)])
 
-  // Reset idle timer on any user interaction (touch or click)
+  // Flag — read env at module level to avoid reading in render
+  const videoDisabled = process.env.NEXT_PUBLIC_DISABLE_VIDEO === 'true'
+
+  // Reset idle timer on any user interaction
   useEffect(() => {
     const resetIdle = () => { lastActive.current = Date.now() }
     window.addEventListener('pointerdown', resetIdle, { passive: true })
@@ -43,7 +45,6 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
     }
   }, [])
 
-  // Reset idle timer whenever user navigates to a new page
   useEffect(() => { lastActive.current = Date.now() }, [pathname])
 
   const detectMotion = useCallback(() => {
@@ -74,7 +75,6 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
         if (motionCount.current >= MOTION_DEBOUNCE) {
           const idleSeconds = Date.now() - lastActive.current
           lastActive.current = Date.now()
-
           if (!wasPresent) {
             setWasPresent(true)
             if (idleSeconds > 8_000) {
@@ -89,17 +89,15 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
         motionCount.current = 0
       }
     }
-
-    // Store as typed array for next comparison
     prevData.current = new Uint8ClampedArray(imgData)
   }, [wasPresent, pathname, router])
 
-  // Stable ref to always-latest detectMotion
   const detectRef = useRef(detectMotion)
   useEffect(() => { detectRef.current = detectMotion }, [detectMotion])
 
   useEffect(() => {
-    if (!enabled) return
+    // Do nothing when video is disabled via env flag
+    if (videoDisabled || !enabled) return
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return
 
     let cancelled = false
@@ -120,15 +118,15 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
       if (intervalRef.current) clearInterval(intervalRef.current)
       streamRef.current?.getTracks().forEach(t => t.stop())
     }
-  }, [enabled])
+  }, [enabled, videoDisabled])
+
+  // When disabled, render nothing
+  if (videoDisabled) return null
 
   return (
     <>
-      {/* Hidden camera elements — never shown to patient */}
       <video ref={videoRef} className="hidden" muted playsInline aria-hidden />
       <canvas ref={canvasRef} className="hidden" aria-hidden />
-
-      {/* Greeting overlay — displayed when patient first arrives */}
       {showGreeting && (
         <div className="greeting-overlay fixed inset-0 z-[300] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md pointer-events-none">
           <AuraLogo size={72} showText={false} />
@@ -143,7 +141,6 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
               {greeting.sub}
             </p>
           </div>
-          {/* Pulse ring under logo */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-40 h-40 rounded-full border-2 border-blue-400/20 animate-ping" />
           </div>

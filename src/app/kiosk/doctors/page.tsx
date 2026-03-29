@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -30,8 +30,8 @@ function QRCodeDisplay({ value, size = 160 }: { value: string; size?: number }) 
     import('qrcode').then(QRCode => {
       QRCode.toDataURL(value, { width: size, margin: 2, color: { dark: '#003d73', light: '#ffffff' } })
         .then(url => setQrDataUrl(url))
-        .catch(() => {})
-    }).catch(() => {})
+        .catch(() => { })
+    }).catch(() => { })
   }, [value, size])
 
   if (!qrDataUrl) {
@@ -58,6 +58,7 @@ export default function KioskDoctors() {
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([])
   const [booking, setBooking] = useState(false)
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null)
+  const [qrBaseUrl, setQrBaseUrl] = useState('')
 
   const SYMPTOM_CHIPS = [
     'Fever', 'Headache', 'Cough', 'Chest Pain', 'Abdominal Pain',
@@ -110,17 +111,25 @@ export default function KioskDoctors() {
           scheduledAt: data.scheduled_at,
           status: data.status,
         })
+        // Resolve real LAN IP for QR code
+        try {
+          const hostRes = await fetch('/api/host')
+          const { origin } = await hostRes.json()
+          setQrBaseUrl(origin || window.location.origin)
+        } catch {
+          setQrBaseUrl(window.location.origin)
+        }
         setBookingStep('qr')
       }
-    } catch {}
+    } catch { }
     setBooking(false)
   }
 
   const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
     AVAILABLE: { label: 'Available', dot: 'bg-emerald-500', badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' },
-    BUSY:      { label: 'Busy',      dot: 'bg-amber-500',  badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
-    ON_BREAK:  { label: 'On Break',  dot: 'bg-blue-500',   badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
-    OFFLINE:   { label: 'Offline',   dot: 'bg-gray-400',   badge: 'bg-gray-100 dark:bg-[#222] text-gray-500 dark:text-gray-400' },
+    BUSY: { label: 'Busy', dot: 'bg-amber-500', badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
+    ON_BREAK: { label: 'On Break', dot: 'bg-blue-500', badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
+    OFFLINE: { label: 'Offline', dot: 'bg-gray-400', badge: 'bg-gray-100 dark:bg-[#222] text-gray-500 dark:text-gray-400' },
   }
 
   const filtered = doctors.filter(d => {
@@ -134,9 +143,7 @@ export default function KioskDoctors() {
 
   // QR result screen
   if (bookingResult && bookingStep === 'qr') {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-      (typeof window !== 'undefined' ? window.location.origin : '')
-    const trackUrl = `${baseUrl}/kiosk/track?qr=${bookingResult.qrCode}`
+    const trackUrl = `${qrBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '')}/kiosk/track?qr=${bookingResult.qrCode}`
     return (
       <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
         <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4 flex items-center gap-3">
@@ -256,30 +263,29 @@ export default function KioskDoctors() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Symptoms / Reason for Visit *</label>
-              {/* Symptom chips */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {SYMPTOM_CHIPS.map(s => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSymptom(s)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                      selectedSymptoms.includes(s)
-                        ? 'bg-[#003d73] border-[#003d73] text-white shadow-sm'
-                        : 'bg-gray-50 dark:bg-[#1a1a1a] border-gray-200 dark:border-[#333] text-gray-600 dark:text-gray-400 hover:border-[#003d73] dark:hover:border-blue-500'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <textarea
-                value={bookingForm.symptoms}
-                onChange={e => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
-                placeholder="Add more details (optional)..."
-                rows={2}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none"
-              /></div>
+                {/* Symptom chips */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {SYMPTOM_CHIPS.map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleSymptom(s)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${selectedSymptoms.includes(s)
+                          ? 'bg-[#003d73] border-[#003d73] text-white shadow-sm'
+                          : 'bg-gray-50 dark:bg-[#1a1a1a] border-gray-200 dark:border-[#333] text-gray-600 dark:text-gray-400 hover:border-[#003d73] dark:hover:border-blue-500'
+                        }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={bookingForm.symptoms}
+                  onChange={e => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
+                  placeholder="Add more details (optional)..."
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none"
+                /></div>
             </div>
 
             <div className="mt-5 space-y-2.5">
@@ -346,11 +352,10 @@ export default function KioskDoctors() {
           <button
             key={val}
             onClick={() => setFilterStatus(val)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-              filterStatus === val
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${filterStatus === val
                 ? 'bg-[#003d73] text-white'
                 : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
-            }`}
+              }`}
           >
             {label}
           </button>

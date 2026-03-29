@@ -19,8 +19,16 @@ interface Appointment {
     specialty: string
     room_number: string | null
     phone: string | null
+    latitude: number | null
+    longitude: number | null
     user: { name: string }
-    department: { name: string; location: string | null; floor: string | null }
+    department: {
+      name: string
+      location: string | null
+      floor: string | null
+      latitude: number | null
+      longitude: number | null
+    }
   } | null
 }
 
@@ -36,6 +44,12 @@ const STATUS_UI: Record<string, { label: string; desc: string; color: string; bg
 function fmt(iso: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('en-ZW', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+/** Build Google Maps directions URL from current location to destination coords */
+function buildMapsUrl(lat: number, lng: number) {
+  // Opens navigation in Google Maps app on mobile, browser on desktop
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`
 }
 
 function TrackContent() {
@@ -119,6 +133,18 @@ function TrackContent() {
 
   const ui = STATUS_UI[appointment.status] || STATUS_UI.PENDING
 
+  // Resolve doctor destination coordinates (doctor's own lat/lng first, then department's)
+  const destLat = appointment.doctor?.latitude ?? appointment.doctor?.department?.latitude ?? null
+  const destLng = appointment.doctor?.longitude ?? appointment.doctor?.department?.longitude ?? null
+  const showDirections = (appointment.status === 'ACCEPTED' || appointment.status === 'IN_PROGRESS') && destLat != null && destLng != null
+  // Fallback to hospital coordinates
+  const fallbackLat = parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LAT || '-18.963694')
+  const fallbackLng = parseFloat(process.env.NEXT_PUBLIC_HOSPITAL_LNG || '32.663358')
+  const mapsUrl = buildMapsUrl(
+    destLat ?? fallbackLat,
+    destLng ?? fallbackLng
+  )
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
       {/* Header */}
@@ -156,7 +182,7 @@ function TrackContent() {
         {/* Status Banner */}
         <div className={`rounded-2xl border p-4 flex items-start gap-3 ${ui.bg}`}>
           <span className="text-2xl mt-0.5">{ui.icon}</span>
-          <div>
+          <div className="flex-1">
             <p className={`text-sm font-black ${ui.color}`}>{ui.label}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{ui.desc}</p>
             {appointment.status === 'DECLINED' && appointment.decline_reason && (
@@ -173,6 +199,25 @@ function TrackContent() {
             )}
           </div>
         </div>
+
+        {/* Google Maps Directions — shown when appointment is confirmed */}
+        {(appointment.status === 'ACCEPTED' || appointment.status === 'IN_PROGRESS') && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 w-full px-4 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-sm shadow-lg shadow-emerald-900/20 hover:from-emerald-600 hover:to-teal-700 transition-all active:scale-95"
+          >
+            <span className="text-xl">🗺️</span>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-black leading-tight">Get Directions</p>
+              <p className="text-[11px] text-white/70 font-normal">Open in Google Maps</p>
+            </div>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        )}
 
         {/* Patient Info */}
         <div className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-4">
