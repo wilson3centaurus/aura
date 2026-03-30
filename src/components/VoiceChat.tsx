@@ -73,6 +73,9 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
   const [transcript, setTranscript] = useState('')
   const [aiText, setAiText] = useState('')
   const [error, setError] = useState('')
+  const [lang, setLang] = useState<'en'|'sn'|'nd'>('en')
+  const [consecutiveSilence, setConsecutiveSilence] = useState(0)
+  
   const scrollRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null)
@@ -105,14 +108,20 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
     window.speechSynthesis.speak(utter)
   }, [])
 
-  const sendToAI = useCallback(async (userText: string) => {
+  const sendToAI = useCallback(async (userText: string, currentHistory: Message[]) => {
     setPhase('thinking')
     setError('')
     try {
-      const res = await fetch('/api/voice-chat', {
+      // Add a system context hint for the language
+      const langHint = lang === 'en' ? "Please reply in English." : lang === 'sn' ? "Please reply in Shona language." : "Please reply in Ndebele language."
+      
+      const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userText }),
+        body: JSON.stringify({ 
+          message: userText + ' ' + langHint,
+          history: currentHistory.map(m => ({ role: m.role === 'user' ? 'user' : 'model', content: m.text }))
+        }),
       })
       if (!res.ok) throw new Error('AI error')
       const data = await res.json()
@@ -120,23 +129,32 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
       const nav: string | undefined = data.navigate
 
       if (!isMounted.current) return
-      setMessages(prev => [...prev, { role: 'assistant', text: reply }])
+      setMessages(prev => [...prev])
       setAiText(reply)
       setPhase('speaking')
 
-      speak(reply, () => {
-        if (!isMounted.current) return
-        setPhase('idle')
-        if (nav) onNavigate(nav)
+      setMessages(prev => {
+        const newHistory = [...prev, { role: 'assistant', text: reply } as Message]
+        speak(reply, () => {
+          if (!isMounted.current) return
+          if (nav) {
+            setPhase('idle')
+            onNavigate(nav)
+          } else {
+            // Loop back to recording
+            startRecording(newHistory)
+          }
+        })
+        return newHistory
       })
     } catch {
       if (!isMounted.current) return
       setError('Could not reach the AI. Please try again.')
       setPhase('idle')
     }
-  }, [speak, onNavigate])
+  }, [speak, onNavigate, lang])
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback((currentHistory: Message[]) => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       setError('Voice input requires Chrome or Edge browser.')
       return
@@ -150,7 +168,7 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
     const recognition = new SR()
     recognition.continuous = false
     recognition.interimResults = true
-    recognition.lang = 'en-US'
+    recognition.lang = lang === 'en' ? 'en-US' : lang === 'sn' ? 'sn-ZW' : 'nd-ZW'
     recognitionRef.current = recognition
 
     recognition.onresult = (event: any) => {
@@ -167,10 +185,24 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
       if (!isMounted.current) return
       const text = recognitionRef.current?._lastTranscript || transcript
       if (text.trim()) {
-        setMessages(prev => [...prev, { role: 'user', text: text.trim() }])
-        sendToAI(text.trim())
+        setConsecutiveSilence(0)
+        setMessages(prev => {
+          const newHistory = [...prev, { role: 'user', text: text.trim() } as Message]
+          sendToAI(text.trim(), newHistory)
+          return newHistory
+        })
       } else {
-        setPhase('idle')
+        setConsecutiveSilence(prev => {
+          const newCount = prev + 1
+          if (newCount >= 2) {
+             setPhase('idle')
+             return 0
+          }
+          setPhase('speaking')
+          const noHear = lang === 'en' ? "I didn't hear anything." : lang === 'sn' ? "Handina chandinzwa." : "Angizwanga lutho."
+          speak(noHear, () => startRecording(currentHistory))
+          return newCount
+        })
       }
     }
 
@@ -187,7 +219,7 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
     })
 
     recognition.start()
-  }, [transcript, sendToAI])
+  }, [transcript, sendToAI, lang, speak])
 
   const stopRecording = useCallback(() => { recognitionRef.current?.stop() }, [])
   const stopSpeaking = useCallback(() => { window.speechSynthesis?.cancel(); setPhase('idle') }, [])
@@ -204,15 +236,33 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
       className="fixed inset-0 z-[500] flex flex-col"
       style={{ background: 'linear-gradient(160deg, #0a0f1e 0%, #0d1b35 60%, #091628 100%)' }}
     >
-      <div className="flex items-center justify-between px-6 pt-6 pb-4">
-        <button onClick={onClose} className="text-white/50 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5">
+      <div className="flex items-center justify-between px-6 pt-6 pb-4 relative">
+        <button onClick={onClose} className="text-white/50 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5 z-10 w-20">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M19 12H5M12 5l-7 7 7 7" />
           </svg>
           Back
         </button>
-        <AuraLogo size={36} showText />
-        <div className="w-16" />
+        
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <AuraLogo size={36} showText />
+        </div>
+        
+        <div className="flex gap-2 z-10 w-20 justify-end">
+          {['en', 'sn', 'nd'].map(l => (
+            <button key={l} onClick={() => {
+              setLang(l as 'en'|'sn'|'nd')
+              const greeting = l === 'en' ? "Hey, what brings you here today?" : l === 'sn' ? "Mhoro, chii chamuunzira pano nhasi?" : "Sawubona, kuyini okukulethe lapha namuhla?"
+              const initHist = [{ role: 'assistant', text: greeting } as Message]
+              setMessages(initHist)
+              setPhase('speaking')
+              speak(greeting, () => startRecording(initHist))
+            }}
+              className={`uppercase text-[10px] font-bold px-2 py-1 rounded-md border ${lang === l ? 'bg-blue-600 border-blue-500 text-white' : 'bg-transparent border-white/20 text-white/50 hover:bg-white/10'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-2 space-y-3">
@@ -280,9 +330,14 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
 
       <div className="flex flex-col items-center gap-4 pb-8">
         <button
-          onPointerDown={phase === 'idle' ? startRecording : undefined}
-          onPointerUp={phase === 'recording' ? stopRecording : undefined}
-          onClick={phase === 'speaking' ? stopSpeaking : undefined}
+          onClick={() => {
+            if (phase === 'idle') {
+               startRecording(messages)
+            } else {
+               stopSpeaking()
+               stopRecording()
+            }
+          }}
           disabled={phase === 'thinking'}
           aria-label={phase === 'recording' ? 'Release to send' : 'Hold to speak'}
           className={`
@@ -316,7 +371,7 @@ function VoiceChatInner({ onClose, onNavigate }: Props) {
           )}
         </button>
         <p className="text-blue-400/50 text-[11px] tracking-wide">
-          {phase === 'recording' ? 'Release to send · tap ✕ to cancel' : 'Hold to speak · release to send'}
+          {phase === 'idle' ? 'Tap mic to resume conversation' : 'Tap to stop conversation'}
         </p>
       </div>
     </div>

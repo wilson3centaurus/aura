@@ -51,22 +51,44 @@ export default function AdminDashboard() {
       const wardsArr: WardStat[] = Array.isArray(wards) ? wards : []
       const apptArr = Array.isArray(appts) ? appts : []
       const queueArr = Array.isArray(queue) ? queue : []
-      const pending = apptArr.filter((a: any) => a.status === 'PENDING')
+      
+      const upcoming = apptArr.filter((a: any) => {
+        if (!a.scheduled_at) return false;
+        if (a.status !== 'PENDING' && a.status !== 'ACCEPTED') return false;
+        const apptDate = new Date(a.scheduled_at);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        return apptDate >= today;
+      }).sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
+      // Unified Queue: Walk-ins (WAITING, CALLED, IN_PROGRESS) + Scheduled (ACCEPTED for today)
+      const walkins = queueArr.map((q: any) => ({ ...q, type: 'walkin' }));
+      const todayScheduled = apptArr.filter((a: any) => {
+        if (a.status !== 'ACCEPTED' || !a.scheduled_at) return false;
+        return new Date(a.scheduled_at).toDateString() === new Date().toDateString();
+      }).map((a: any) => ({ ...a, type: 'scheduled' }));
+
+      const unifiedQueue = [...walkins, ...todayScheduled].sort((a, b) => {
+          const timeA = new Date(a.scheduled_at || a.created_at).getTime();
+          const timeB = new Date(b.scheduled_at || b.created_at).getTime();
+          return timeA - timeB;
+      });
+
       setStats({
         doctors: Array.isArray(docs) ? docs.length : 0,
         departments: Array.isArray(deps) ? deps.length : 0,
         medications: Array.isArray(meds) ? meds.length : 0,
-        queueActive: queueArr.length,
+        queueActive: unifiedQueue.length,
         admittedPatients: Array.isArray(patients) ? patients.length : 0,
-        todayAppointments: apptArr.length,
-        pendingAppointments: pending.length,
+        todayAppointments: apptArr.filter((a: any) => new Date(a.scheduled_at).toDateString() === new Date().toDateString()).length,
+        pendingAppointments: upcoming.length,
         wardsCount: wardsArr.length,
         bedsOccupied: wardsArr.reduce((a, w) => a + (w.occupied_beds || 0), 0),
         bedsTotal: wardsArr.reduce((a, w) => a + (w.total_beds || 0), 0),
       })
       setWardStats(wardsArr.slice(0, 4))
-      setRecentQueue(queueArr.slice(0, 6))
-      setPendingAppts(pending.slice(0, 4))
+      setRecentQueue(unifiedQueue.slice(0, 10))
+      setPendingAppts(upcoming.slice(0, 4))
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -87,8 +109,8 @@ export default function AdminDashboard() {
     { label: 'Departments', value: stats.departments, sub: 'active', href: '/admin/departments', icon: '🏥', color: 'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400' },
     { label: 'Active Queue', value: stats.queueActive, sub: 'waiting', href: '#', icon: '🎫', color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400' },
     { label: 'Admitted', value: stats.admittedPatients, sub: 'patients', href: '/admin/patients', icon: '🛏️', color: 'bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400' },
-    { label: 'Appointments', value: stats.todayAppointments, sub: 'total', href: '/admin/appointments', icon: '📅', color: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' },
-    { label: 'Pending', value: stats.pendingAppointments, sub: 'awaiting', href: '/admin/appointments', icon: '⏳', color: 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400' },
+    { label: 'Appointments', value: stats.todayAppointments, sub: 'today', href: '/admin/appointments', icon: '📅', color: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400' },
+    { label: 'Upcoming', value: stats.pendingAppointments, sub: 'appointments', href: '/admin/appointments', icon: '⏳', color: 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400' },
     { label: 'Medications', value: stats.medications, sub: 'in stock', href: '/admin/medications', icon: '💊', color: 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400' },
     { label: 'Wards', value: stats.wardsCount, sub: 'operational', href: '/admin/wards', icon: '🏨', color: 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' },
   ]
@@ -216,25 +238,43 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="space-y-1">
-              {recentQueue.map((q: any, i) => (
-                <div key={q.id} className="flex items-center gap-3 py-2 border-b border-gray-50 dark:border-[#1a1a1a] last:border-0">
-                  <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-[#222] text-[11px] font-black text-gray-500 dark:text-gray-400 flex items-center justify-center flex-shrink-0">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{q.patient_name}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{q.department?.name || ''}</p>
+              {recentQueue.map((q: any, i) => {
+                const isScheduled = q.type === 'scheduled';
+                return (
+                  <div key={q.id} className="flex items-center gap-3 py-2 border-b border-gray-50 dark:border-[#1a1a1a] last:border-0">
+                    <span className={`w-7 h-7 rounded-lg text-[10px] font-black flex items-center justify-center flex-shrink-0 ${
+                      isScheduled ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-[#222] text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {isScheduled ? '📅' : `#${q.ticket_number}`}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{q.patient_name || q.patientName}</p>
+                      <div className="flex items-center text-[10px] text-gray-400 truncate gap-1 mt-0.5">
+                        <span className="truncate">{q.department?.name || (isScheduled ? 'Appointment' : '')}</span>
+                        {(q.doctor?.user?.name || q.doctor?.name) && (
+                           <>
+                             <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+                             <span className="truncate font-medium text-blue-500/80">Dr. {q.doctor?.user?.name || q.doctor?.name}</span>
+                           </>
+                        )}
+                      </div>
+                    </div>
+                    {isScheduled ? (
+                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+                        {new Date(q.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    ) : (
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0 ${
+                        q.priority === 'EMERGENCY' ? 'bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400'
+                        : q.priority === 'URGENT' ? 'bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400'
+                        : 'bg-gray-100 dark:bg-[#222] text-gray-500'
+                      }`}>
+                        {q.priority}
+                      </span>
+                    )}
                   </div>
-                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0 ${
-                    q.priority === 'EMERGENCY' ? 'bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400'
-                    : q.priority === 'URGENT' ? 'bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400'
-                    : 'bg-gray-100 dark:bg-[#222] text-gray-500'
-                  }`}>
-                    {q.priority}
-                  </span>
-                  <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">#{q.ticket_number}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -242,7 +282,7 @@ export default function AdminDashboard() {
         {/* Pending appointments - span 1 */}
         <div className="bg-white dark:bg-[#111] rounded-xl border border-gray-200 dark:border-[#222] p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-white">Pending Appointments</h2>
+            <h2 className="text-sm font-bold text-gray-900 dark:text-white">Upcoming Appointments</h2>
             {stats.pendingAppointments > 0 && (
               <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center animate-pulse">
                 {stats.pendingAppointments}
@@ -266,8 +306,11 @@ export default function AdminDashboard() {
                     {new Date(a.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </p>
                   <div className="flex items-center gap-1.5 mt-2">
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400">
-                      PENDING DOCTOR
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                      a.status === 'ACCEPTED' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
+                      'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400'
+                    }`}>
+                      {a.status === 'ACCEPTED' ? 'ACCEPTED' : 'PENDING DOCTOR'}
                     </span>
                   </div>
                 </div>

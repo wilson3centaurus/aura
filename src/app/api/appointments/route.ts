@@ -52,26 +52,23 @@ export async function POST(request: NextRequest) {
     return `${dl()}${dl()}${n}`
   }
 
-  let id = ''
+  let shortCode = ''
   for (let i = 0; i < 5; i++) {
-    id = generateShortCode()
-    const { count } = await supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('id', id)
+    shortCode = generateShortCode()
+    const { count } = await supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('qr_code', shortCode)
     if (count === 0) break
   }
-
-  const qrCode = crypto.randomUUID()
 
   const { data: appointment, error } = await supabase
     .from('appointments')
     .insert({
-      id,
       patient_name: patientName,
       patient_phone: patientPhone || null,
       symptoms: symptoms || null,
       doctor_id: doctorId,
       scheduled_at: new Date(scheduledAt).toISOString(),
       notes: notes || null,
-      qr_code: qrCode,
+      qr_code: shortCode,
     })
     .select()
     .single()

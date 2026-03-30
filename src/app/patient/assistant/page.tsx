@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 
 export default function PatientAssistant() {
-  const [messages, setMessages] = useState<{role: 'user'|'model', content: string}[]>([])
+  const [messages, setMessages] = useState<{role: 'user'|'model', content: string, action?: any}[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -28,7 +28,7 @@ export default function PatientAssistant() {
       })
       const data = await res.json()
       if (data.reply) {
-        setMessages(prev => [...prev, { role: 'model', content: data.reply }])
+        setMessages(prev => [...prev, { role: 'model', content: data.reply, action: data.action }])
       } else {
         setMessages(prev => [...prev, { role: 'model', content: "I'm having trouble connecting right now." }])
       }
@@ -66,7 +66,7 @@ export default function PatientAssistant() {
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={i} className={`flex flex-col w-full ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
             <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
               m.role === 'user' 
                 ? 'bg-[#003d73] text-white rounded-br-sm' 
@@ -74,6 +74,37 @@ export default function PatientAssistant() {
             }`}>
               <p className="whitespace-pre-wrap text-[15px]">{m.content}</p>
             </div>
+            
+            {m.action && m.action.type === 'MAP' && (
+              <div className="mt-2 w-full max-w-[85%] rounded-xl overflow-hidden border border-gray-200 dark:border-[#333] shadow-sm ml-2">
+                 <div className="bg-[#003d73] text-white px-4 py-2 text-sm font-bold flex justify-between items-center">
+                    <span className="truncate">📍 {m.action.name}</span>
+                    <a href={`https://www.google.com/maps/dir/?api=1&destination=${m.action.lat},${m.action.lng}`} target="_blank" className="bg-white/20 px-3 py-1 rounded-lg hover:bg-white/30 text-xs shrink-0 ml-2 shadow-sm font-medium">Open Google Maps</a>
+                 </div>
+                 <div className="h-32 bg-gray-200 dark:bg-gray-800 flex items-center justify-center relative bg-cover bg-center" style={{ backgroundImage: `url('https://maps.googleapis.com/maps/api/staticmap?center=${m.action.lat},${m.action.lng}&zoom=17&size=400x150&maptype=roadmap&markers=color:red%7C${m.action.lat},${m.action.lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}')` }} />
+              </div>
+            )}
+
+            {m.action && m.action.type === 'APPOINTMENT' && (
+              <div className="mt-2 w-full max-w-[85%] rounded-2xl p-4 border border-blue-200 dark:border-[#003d73] bg-blue-50/50 dark:bg-[#111] shadow-sm ml-2 text-left">
+                 <div className="flex justify-between items-start mb-1">
+                   <div>
+                     <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest mb-0.5">Appt. Tracker</p>
+                     <p className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-wider">{m.action.id}</p>
+                   </div>
+                   <span className={`px-2.5 py-1 text-[10px] font-black tracking-wider uppercase rounded-md shadow-sm border ${
+                     m.action.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50' :
+                     m.action.status === 'PENDING' ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50' :
+                     'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'
+                   }`}>{m.action.status}</span>
+                 </div>
+                 
+                 <div className="mt-4 px-3 py-2 bg-white dark:bg-[#0a0a0a] rounded-xl border border-gray-100 dark:border-[#222]">
+                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 line-clamp-1"><span className="text-gray-400 text-xs uppercase tracking-wide mr-2">Doc</span>Dr. {m.action.doctor}</p>
+                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300"><span className="text-gray-400 text-xs uppercase tracking-wide mr-2">Time</span>{new Date(m.action.time).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</p>
+                 </div>
+              </div>
+            )}
           </div>
         ))}
         {loading && (
