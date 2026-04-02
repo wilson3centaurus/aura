@@ -49,15 +49,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  // Get next ticket number
-  const { data: lastEntry } = await supabase
-    .from('queue_entries')
-    .select('ticket_number')
-    .order('ticket_number', { ascending: false })
-    .limit(1)
-    .single()
-
-  const ticketNumber = (lastEntry?.ticket_number || 0) + 1
+  // Use a random 4-digit ticket number to avoid race conditions with sequential numbering.
+  // The ticket number is used for display only; uniqueness in the DB is not enforced by schema.
+  const ticketNumber = Math.floor(1000 + Math.random() * 9000)
 
   const { data: entry, error } = await supabase
     .from('queue_entries')

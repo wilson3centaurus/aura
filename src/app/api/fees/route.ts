@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
+import { getSession } from '@/lib/auth'
 
 export async function GET() {
   const { data: fees, error } = await supabase
@@ -13,6 +14,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getSession()
+  if (!session || session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { service, category, price, description, icon } = await request.json()
 
   if (!service || !category || price === undefined) {

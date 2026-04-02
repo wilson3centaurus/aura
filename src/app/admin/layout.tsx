@@ -33,10 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [profileOpen, setProfileOpen] = useState(false)
   const [userName, setUserName] = useState('Admin')
 
-  useEffect(() => {
-    // Attempt to get the user's name from the cookie/session
-    fetch('/api/doctors/me').catch(() => {})
-  }, [])
+
 
   if (pathname === '/admin/login') {
     return (

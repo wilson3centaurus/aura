@@ -39,58 +39,16 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/doctors').then(r => r.json()),
-      fetch('/api/departments').then(r => r.json()),
-      fetch('/api/medications').then(r => r.json()),
-      fetch('/api/queue?status=WAITING,CALLED,IN_PROGRESS').then(r => r.json()),
-      fetch('/api/patients').then(r => r.json()),
-      fetch('/api/appointments').then(r => r.json()),
-      fetch('/api/wards').then(r => r.json()).catch(() => []),
-    ]).then(([docs, deps, meds, queue, patients, appts, wards]) => {
-      const wardsArr: WardStat[] = Array.isArray(wards) ? wards : []
-      const apptArr = Array.isArray(appts) ? appts : []
-      const queueArr = Array.isArray(queue) ? queue : []
-      
-      const upcoming = apptArr.filter((a: any) => {
-        if (!a.scheduled_at) return false;
-        if (a.status !== 'PENDING' && a.status !== 'ACCEPTED') return false;
-        const apptDate = new Date(a.scheduled_at);
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        return apptDate >= today;
-      }).sort((a: any, b: any) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
-
-      // Unified Queue: Walk-ins (WAITING, CALLED, IN_PROGRESS) + Scheduled (ACCEPTED for today)
-      const walkins = queueArr.map((q: any) => ({ ...q, type: 'walkin' }));
-      const todayScheduled = apptArr.filter((a: any) => {
-        if (a.status !== 'ACCEPTED' || !a.scheduled_at) return false;
-        return new Date(a.scheduled_at).toDateString() === new Date().toDateString();
-      }).map((a: any) => ({ ...a, type: 'scheduled' }));
-
-      const unifiedQueue = [...walkins, ...todayScheduled].sort((a, b) => {
-          const timeA = new Date(a.scheduled_at || a.created_at).getTime();
-          const timeB = new Date(b.scheduled_at || b.created_at).getTime();
-          return timeA - timeB;
-      });
-
-      setStats({
-        doctors: Array.isArray(docs) ? docs.length : 0,
-        departments: Array.isArray(deps) ? deps.length : 0,
-        medications: Array.isArray(meds) ? meds.length : 0,
-        queueActive: unifiedQueue.length,
-        admittedPatients: Array.isArray(patients) ? patients.length : 0,
-        todayAppointments: apptArr.filter((a: any) => new Date(a.scheduled_at).toDateString() === new Date().toDateString()).length,
-        pendingAppointments: upcoming.length,
-        wardsCount: wardsArr.length,
-        bedsOccupied: wardsArr.reduce((a, w) => a + (w.occupied_beds || 0), 0),
-        bedsTotal: wardsArr.reduce((a, w) => a + (w.total_beds || 0), 0),
+    fetch('/api/dashboard')
+      .then(r => r.json())
+      .then(data => {
+        setStats(data.stats)
+        setWardStats(data.wardStats)
+        setRecentQueue(data.recentQueue)
+        setPendingAppts(data.upcomingAppts)
+        setLoading(false)
       })
-      setWardStats(wardsArr.slice(0, 4))
-      setRecentQueue(unifiedQueue.slice(0, 10))
-      setPendingAppts(upcoming.slice(0, 4))
-      setLoading(false)
-    }).catch(() => setLoading(false))
+      .catch(() => setLoading(false))
   }, [])
 
   if (loading) {

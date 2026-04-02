@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { 
-  MdTrendingUp, MdPeople, MdLocalHospital, MdAccessTime, 
+import {
+  MdTrendingUp, MdPeople, MdLocalHospital, MdAccessTime,
   MdCheckCircle, MdCancel, MdCalendarMonth, MdPerson
 } from 'react-icons/md'
 
@@ -31,7 +31,7 @@ export default function AdminReports() {
     ]).then(([appts, queue, patients, docs, deps]) => {
       const apptArr = Array.isArray(appts) ? appts : []
       const queueArr = Array.isArray(queue) ? queue : []
-      
+
       // Appointments by status
       const statusMap: Record<string, number> = {}
       apptArr.forEach((a: any) => {
@@ -108,15 +108,15 @@ export default function AdminReports() {
           <p className="text-sm text-gray-500 mt-0.5">Performance reports for Mutare Provincial Hospital</p>
         </div>
         <div className="flex gap-2">
-            <button className="px-4 py-2 bg-[#003d73] text-white text-xs font-bold rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all">Export PDF</button>
-            <button className="px-4 py-2 bg-gray-100 dark:bg-[#111] text-gray-600 dark:text-gray-400 text-xs font-bold rounded-xl border border-gray-200 dark:border-[#222]">Last 30 Days</button>
+          <button className="px-4 py-2 bg-[#003d73] text-white text-xs font-bold rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all">Export PDF</button>
+          <button className="px-4 py-2 bg-gray-100 dark:bg-[#111] text-gray-600 dark:text-gray-400 text-xs font-bold rounded-xl border border-gray-200 dark:border-[#222]">Last 30 Days</button>
         </div>
       </div>
 
       {/* Main Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Appointments" value={data.totalAppointments} icon={<MdCalendarMonth />} trend="+12% from last week" />
-        <StatCard title="Unique Patients" value={data.totalPatients} icon={<MdPeople />} trend="+5% growth" />
+        <StatCard title="Patients" value={data.totalPatients} icon={<MdPeople />} trend="+5% growth" />
         <StatCard title="Avg. Consultation" value={data.avgWaitTimeSim} icon={<MdAccessTime />} trend="-2m improvement" />
         <StatCard title="Completion Rate" value={`${Math.round(((data.appointmentsByStatus.COMPLETED || 0) / data.totalAppointments) * 100) || 0}%`} icon={<MdCheckCircle />} trend="High efficiency" />
       </div>
@@ -135,12 +135,11 @@ export default function AdminReports() {
                   <span className="text-gray-900 dark:text-white">{count}</span>
                 </div>
                 <div className="h-2 bg-gray-100 dark:bg-[#1a1a1a] rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full ${
-                      status === 'COMPLETED' ? 'bg-emerald-500' :
-                      status === 'DECLINED' ? 'bg-rose-500' :
-                      status === 'ACCEPTED' ? 'bg-blue-500' : 'bg-amber-500'
-                    }`}
+                  <div
+                    className={`h-full rounded-full ${status === 'COMPLETED' ? 'bg-emerald-500' :
+                        status === 'DECLINED' ? 'bg-rose-500' :
+                          status === 'ACCEPTED' ? 'bg-blue-500' : 'bg-amber-500'
+                      }`}
                     style={{ width: `${(count / data.totalAppointments) * 100}%` }}
                   />
                 </div>
@@ -171,20 +170,20 @@ export default function AdminReports() {
 
         {/* Doctor Performance */}
         <div className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-6 lg:col-span-3">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                <MdPerson className="text-emerald-500" /> Top Performing Staff
-            </h2>
-            <div className="grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                {data.topDoctors.map(doc => (
-                    <div key={doc.name} className="text-center p-6 rounded-2xl border border-gray-100 dark:border-[#222] bg-white dark:bg-[#0d0d0d] hover:border-emerald-500/50 transition-all">
-                        <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950/20 mx-auto flex items-center justify-center text-2xl mb-4 border-2 border-emerald-100 dark:border-emerald-900/30 text-emerald-600">
-                            👨‍⚕️
-                        </div>
-                        <p className="text-sm font-black text-gray-900 dark:text-white truncate">Dr. {doc.name}</p>
-                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">{doc.count} Appts</p>
-                    </div>
-                ))}
-            </div>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <MdPerson className="text-emerald-500" /> Top Performing Staff
+          </h2>
+          <div className="grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {data.topDoctors.map(doc => (
+              <div key={doc.name} className="text-center p-6 rounded-2xl border border-gray-100 dark:border-[#222] bg-white dark:bg-[#0d0d0d] hover:border-emerald-500/50 transition-all">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950/20 mx-auto flex items-center justify-center text-2xl mb-4 border-2 border-emerald-100 dark:border-emerald-900/30 text-emerald-600">
+                  👨‍⚕️
+                </div>
+                <p className="text-sm font-black text-gray-900 dark:text-white truncate">Dr. {doc.name}</p>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">{doc.count} Appts</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -4,20 +4,17 @@ import { supabase } from '@/lib/db'
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const { data: ward, error: wardError } = await supabase
-    .from('wards')
-    .select('*')
-    .eq('id', id)
-    .single()
+  // Run the ward and beds fetches in parallel
+  const [{ data: ward, error: wardError }, { data: beds }] = await Promise.all([
+    supabase.from('wards').select('*').eq('id', id).single(),
+    supabase
+      .from('beds')
+      .select('id, bed_number, is_occupied, patient_id')
+      .eq('ward_id', id)
+      .order('bed_number'),
+  ])
 
   if (wardError || !ward) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  // Fetch beds separately (no FK from beds.patient_id → admitted_patients in schema)
-  const { data: beds } = await supabase
-    .from('beds')
-    .select('id, bed_number, is_occupied, patient_id')
-    .eq('ward_id', id)
-    .order('bed_number')
 
   const bedsArr = beds || []
   const patientIds = bedsArr.filter((b: any) => b.patient_id).map((b: any) => b.patient_id as string)

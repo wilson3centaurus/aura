@@ -6,22 +6,22 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const onlyActivated = searchParams.get('activated') === 'true'
 
-  const { data: doctors, error } = await supabase
-    .from('doctors')
-    .select(`
+  const [{ data: doctors, error }, { data: queueCounts }] = await Promise.all([
+    supabase
+      .from('doctors')
+      .select(`
       *,
       user:users!doctors_user_id_fkey(name, email, profile_image, password_changed),
       department:departments!doctors_department_id_fkey(id, name)
     `)
-    .order('created_at', { ascending: true })
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('queue_entries')
+      .select('doctor_id')
+      .in('status', ['WAITING', 'CALLED']),
+  ])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // Get queue counts per doctor
-  const { data: queueCounts } = await supabase
-    .from('queue_entries')
-    .select('doctor_id')
-    .in('status', ['WAITING', 'CALLED'])
 
   const countMap: Record<string, number> = {}
   queueCounts?.forEach(q => {
