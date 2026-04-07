@@ -17,6 +17,10 @@ export default function KioskMenu() {
 
   useEffect(() => {
     setLang(localStorage.getItem('aura-language') ?? 'en')
+    // Pre-warm all kiosk routes so first tap is instant
+    ;['/kiosk/doctors', '/kiosk/medication', '/kiosk/symptoms', '/kiosk/information',
+      '/kiosk/visit', '/kiosk/facilities', '/kiosk/queue', '/kiosk/assistant',
+    ].forEach(href => router.prefetch(href))
   }, [])
 
   const MENU_ITEMS = [
@@ -63,40 +67,38 @@ export default function KioskMenu() {
     <div className="flex flex-col h-full">
 
       {/* ── Header ── */}
-      <header className="hero-gradient px-5 py-3.5 flex items-center justify-between shadow-lg">
+      <header className="hero-gradient px-4 py-3 flex items-center justify-between shadow-lg flex-shrink-0">
         <button
           onClick={() => router.push('/kiosk')}
-          className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
         >
           <FaChevronLeft size={12} />
           {t(lang, 'changeLanguage')}
         </button>
         <div className="text-center">
-          <p className="text-white font-bold text-sm leading-tight">Mutare Provincial Hospital</p>
-          <p className="text-white/60 text-[10px]">{t(lang, 'menuTitle')}</p>
+          <p className="text-white font-bold text-base leading-tight">Mutare Provincial Hospital</p>
+          <p className="text-white/60 text-xs">{t(lang, 'menuTitle')}</p>
         </div>
-        <AuraLogo size={36} />
+        <AuraLogo size={48} />
       </header>
 
       {/* ── Menu grid ── */}
-      <main className="flex-1 flex flex-col p-3 pb-1">
-        <div className="flex-1 grid grid-cols-2 gap-2.5">
+      <main className="flex-1 flex flex-col p-2 pb-1 min-h-0">
+        <div className="flex-1 grid grid-cols-2 gap-2">
           {MENU_ITEMS.map((item) => {
             const Icon = item.icon
             return (
               <button
                 key={item.id}
-                onClick={() => router.push(item.href)}
-                className="group kiosk-card flex flex-col p-4 text-left h-full"
+                onPointerDown={() => router.push(item.href)}
+                className="group kiosk-card flex items-center gap-3 px-3 py-0 text-left"
+                style={{ minHeight: 0 }}
               >
-                <div className={`kiosk-card-icon bg-gradient-to-br ${item.color} mb-3`}>
+                <div className={`kiosk-card-icon-sm bg-gradient-to-br ${item.color} flex-shrink-0`}>
                   <Icon />
                 </div>
-                <span className="text-base font-bold text-gray-800 dark:text-gray-100 leading-snug">
+                <span className="text-xl font-bold text-gray-800 dark:text-gray-100 leading-tight">
                   {item.label}
-                </span>
-                <span className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                  {item.subLabel}
                 </span>
               </button>
             )
@@ -104,35 +106,27 @@ export default function KioskMenu() {
         </div>
       </main>
 
-      {/* ── Amenities notice ── */}
-      <div className="mx-3 mb-2 px-4 py-2 rounded-2xl bg-white/70 dark:bg-gray-800/70 border border-blue-100 dark:border-blue-900/30 backdrop-blur-sm text-center">
-        <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1.5">{t(lang, 'suppliesBelow')}</p>
-        <div className="flex items-center justify-center gap-5 text-[11px] text-gray-500 dark:text-gray-400">
-          <span className="flex items-center gap-1.5"><i className="fa-solid fa-droplet text-blue-400" /> Water</span>
-          <span className="flex items-center gap-1.5"><i className="fa-solid fa-hand-sparkles text-cyan-400" /> Sanitizer</span>
-          <span className="flex items-center gap-1.5"><i className="fa-solid fa-toilet-paper text-gray-400" /> Tissues</span>
+      {/* ── Bottom bar: amenities + voice ── */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-t border-gray-100 dark:border-[#1a1a1a] flex-shrink-0">
+        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+          <span>💧 Water</span>
+          <span>🧴 Sanitizer</span>
+          <span>🧻 Tissues</span>
         </div>
-      </div>
-
-      {/* ── Voice button ── */}
-      <div className="flex flex-col items-center pb-4 pt-1">
         <button
           onClick={startVoice}
           aria-label={listening ? 'Stop voice input' : 'Start voice input'}
           className={`
-            relative w-14 h-14 rounded-full flex items-center justify-center
-            shadow-lg text-white transition-all duration-300
+            relative w-10 h-10 rounded-full flex items-center justify-center
+            shadow-md text-white transition-all duration-300
             ${listening
-              ? 'voice-active bg-red-500 scale-110'
+              ? 'bg-red-500 scale-110'
               : 'bg-gradient-to-br from-blue-600 to-cyan-500 hover:scale-110 active:scale-95'
             }
           `}
         >
-          {listening ? <FaStop size={18} /> : <FaMicrophone size={18} />}
+          {listening ? <FaStop size={14} /> : <FaMicrophone size={14} />}
         </button>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 font-medium">
-          {listening ? t(lang, 'listening') : t(lang, 'askAnything')}
-        </p>
       </div>
 
     </div>

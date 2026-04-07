@@ -38,7 +38,7 @@ interface Ward {
 }
 
 const ADMISSION_REASONS = [
-  'Malaria', 'Typhoid Fever', 'Pneumonia', 'Tuberculosis (TB)', 'HIV/AIDS Complications',
+  'Accident', 'Malaria', 'Typhoid Fever', 'Pneumonia', 'Tuberculosis (TB)', 'HIV/AIDS Complications',
   'Cholera / Diarrhoeal Disease', 'Hypertension', 'Diabetes Mellitus',
   'Maternal Complications / Delivery', 'Post-Surgical Recovery',
   'Trauma / Injury', 'Stroke / CVA', 'Severe Anaemia', 'Kidney Disease',
@@ -104,7 +104,7 @@ export default function AdminWards() {
   const [dischargeBed, setDischargeBed] = useState<Bed | null>(null)
   const [discharging, setDischarging] = useState(false)
   const [editWard, setEditWard] = useState<Ward | null>(null)
-  const [editWardForm, setEditWardForm] = useState({ name: '', wardType: 'General', floor: 'Ground Floor', nurseInCharge: '', totalBeds: '' })
+  const [editWardForm, setEditWardForm] = useState({ name: '', wardType: 'General', floor: 'Ground Floor', nurseInCharge: '', totalBeds: '', latitude: '', longitude: '' })
   const [editWardSaving, setEditWardSaving] = useState(false)
   const [deleteWard, setDeleteWard] = useState<Ward | null>(null)
   const [deletingWard, setDeletingWard] = useState(false)
@@ -115,6 +115,9 @@ export default function AdminWards() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markerRef = useRef<any>(null)
+  const mapEditRef = useRef<HTMLDivElement>(null)
+  const mapInstanceEditRef = useRef<any>(null)
+  const markerEditRef = useRef<any>(null)
   const [mapReady, setMapReady] = useState(false)
 
   const loadWards = useCallback(async () => {
@@ -141,7 +144,37 @@ export default function AdminWards() {
 
   useEffect(() => { loadWards() }, [])
 
-  // Load Google Maps for coord picking
+  // Initialize the map inside the Edit Ward modal (must be declared before useEffects that call it)
+  const initEditMap = useCallback(() => {
+    if (!mapEditRef.current || mapInstanceEditRef.current || !editWard) return
+    const lat = editWard.latitude || -18.9707
+    const lng = editWard.longitude || 32.6709
+    const map = new window.google.maps.Map(mapEditRef.current, {
+      center: { lat, lng },
+      zoom: 17,
+      mapTypeId: 'satellite',
+      disableDefaultUI: true,
+    })
+    mapInstanceEditRef.current = map
+    if (editWard.latitude && editWard.longitude) {
+      markerEditRef.current = new window.google.maps.Marker({
+        position: { lat, lng }, map,
+        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#ef4444', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+      })
+    }
+    map.addListener('click', (e: any) => {
+      const newLat = e.latLng.lat().toFixed(7)
+      const newLng = e.latLng.lng().toFixed(7)
+      setEditWardForm(f => ({ ...f, latitude: newLat, longitude: newLng }))
+      if (markerEditRef.current) markerEditRef.current.setMap(null)
+      markerEditRef.current = new window.google.maps.Marker({
+        position: e.latLng, map,
+        icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#ef4444', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 },
+      })
+    })
+  }, [editWard])
+
+  // Load Google Maps for coord picking (create form)
   useEffect(() => {
     if (!showCreateForm) return
     if (window.google?.maps) { initMap(); return }
@@ -159,6 +192,34 @@ export default function AdminWards() {
       initMap()
     }
   }, [mapReady, showCreateForm])
+
+  // Load / init map for the Edit Ward modal
+  useEffect(() => {
+    if (!editWard) {
+      mapInstanceEditRef.current = null
+      markerEditRef.current = null
+      return
+    }
+    const timer = setTimeout(() => {
+      if (window.google?.maps && mapEditRef.current && !mapInstanceEditRef.current) {
+        initEditMap()
+      } else if (!window.google?.maps && !document.getElementById('gmaps-script')) {
+        window.initWardMap = () => setMapReady(true)
+        const s = document.createElement('script')
+        s.id = 'gmaps-script'
+        s.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initWardMap`
+        s.async = true
+        document.head.appendChild(s)
+      }
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [editWard, initEditMap])
+
+  useEffect(() => {
+    if (mapReady && editWard && mapEditRef.current && !mapInstanceEditRef.current) {
+      initEditMap()
+    }
+  }, [mapReady, editWard, initEditMap])
 
   const initMap = () => {
     if (!mapRef.current || mapInstanceRef.current) return
@@ -261,6 +322,8 @@ export default function AdminWards() {
       floor: ward.floor,
       nurseInCharge: ward.nurse_in_charge || '',
       totalBeds: ward.total_beds.toString(),
+      latitude: ward.latitude?.toString() || '',
+      longitude: ward.longitude?.toString() || '',
     })
   }
 
@@ -278,6 +341,8 @@ export default function AdminWards() {
           floor: editWardForm.floor,
           nurseInCharge: editWardForm.nurseInCharge,
           totalBeds: parseInt(editWardForm.totalBeds) || editWard.total_beds,
+          latitude: editWardForm.latitude ? parseFloat(editWardForm.latitude) : null,
+          longitude: editWardForm.longitude ? parseFloat(editWardForm.longitude) : null,
         }),
       })
       if (res.ok) { setEditWard(null); loadWards() }
@@ -769,7 +834,7 @@ export default function AdminWards() {
                 <h3 className="text-base font-black text-gray-900 dark:text-white">Edit Ward</h3>
                 <p className="text-xs text-gray-500 mt-0.5">{editWard.name}</p>
               </div>
-              <button onClick={() => setEditWard(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222] text-gray-500 transition-colors">
+              <button onClick={() => { setEditWard(null); mapInstanceEditRef.current = null }} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222] text-gray-500 transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -817,8 +882,33 @@ export default function AdminWards() {
                   </p>
                 )}
               </div>
+
+              {/* Ward location map */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                  Ward Location Pin
+                  {editWardForm.latitude && (
+                    <span className="ml-2 font-mono text-blue-600 dark:text-blue-400 font-normal normal-case text-[10px]">
+                      📍 {editWardForm.latitude}, {editWardForm.longitude}
+                    </span>
+                  )}
+                </label>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <input value={editWardForm.latitude} onChange={e => setEditWardForm(f => ({ ...f, latitude: e.target.value }))}
+                    placeholder="Latitude (click map)"
+                    className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+                  <input value={editWardForm.longitude} onChange={e => setEditWardForm(f => ({ ...f, longitude: e.target.value }))}
+                    placeholder="Longitude (click map)"
+                    className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+                </div>
+                <div ref={mapEditRef} className="w-full h-40 rounded-xl overflow-hidden border border-gray-200 dark:border-[#333] bg-gray-100 dark:bg-[#1a1a1a]">
+                  {!window.google?.maps && (
+                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">Loading map…</div>
+                  )}
+                </div>
+              </div>
               <div className="flex gap-2 pt-1">
-                <button type="button" onClick={() => setEditWard(null)}
+                <button type="button" onClick={() => { setEditWard(null); mapInstanceEditRef.current = null }}
                   className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-[#333] text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
                   Cancel
                 </button>

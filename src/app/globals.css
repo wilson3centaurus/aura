@@ -21,9 +21,18 @@ html, body {
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
-  height: 100dvh;
-  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  cursor: none; /* hide jittery touchscreen pointer */
+}
+
+/* Let inputs/textareas be typed into and focusable */
+.kiosk-container input,
+.kiosk-container textarea,
+.kiosk-container select {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  touch-action: auto;
+  cursor: auto;
 }
 
 .kiosk-container::-webkit-scrollbar { width: 6px; }
@@ -45,8 +54,15 @@ html, body {
          hover:shadow-xl active:scale-[0.97] transition-all duration-200 cursor-pointer;
 }
 
+/* Full-size icon (used in non-menu kiosk pages) */
 .kiosk-card-icon {
   @apply w-16 h-16 rounded-xl flex items-center justify-center text-white text-3xl
+         shadow-md group-hover:scale-110 transition-transform duration-200;
+}
+
+/* Compact icon for the 7" screen menu grid */
+.kiosk-card-icon-sm {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg
          shadow-md group-hover:scale-110 transition-transform duration-200;
 }
 

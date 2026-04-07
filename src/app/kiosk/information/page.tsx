@@ -25,7 +25,7 @@ interface InfoItem {
 function InformationContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'Provincial')
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'general')
   const [fees, setFees] = useState<Fee[]>([])
   const [info, setInfo] = useState<InfoItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,10 +42,10 @@ function InformationContent() {
   }, [])
 
   const tabs = [
-    { id: 'Provincial',  label: 'Provincial Info',    icon: MdInfo },
-    { id: 'fees',     label: 'Fees & Costs',    icon: MdAttachMoney },
-    { id: 'visiting', label: 'Visiting Hours',  icon: MdAccessTime },
-    { id: 'contacts', label: 'Contacts',        icon: MdPhone },
+    { id: 'general',   label: 'Hospital Info',   icon: MdInfo },
+    { id: 'fees',      label: 'Fees & Costs',    icon: MdAttachMoney },
+    { id: 'visiting',  label: 'Visiting Hours',  icon: MdAccessTime },
+    { id: 'contact',   label: 'Contacts',        icon: MdPhone },
   ]
 
   const groupedFees = fees.reduce((acc, fee) => {
@@ -54,7 +54,7 @@ function InformationContent() {
     return acc
   }, {} as Record<string, Fee[]>)
 
-  const filteredInfo = info.filter(i => i.category === activeTab)
+  const filteredInfo = activeTab === 'fees' ? [] : info.filter(i => i.category === activeTab)
 
   return (
     <div className="flex flex-col h-full">

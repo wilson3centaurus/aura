@@ -8,7 +8,7 @@ import {
   MdPayment, MdPersonPin, MdMap, MdLogout,
   MdLightMode, MdDarkMode, MdBed, MdCalendarMonth,
   MdMenu, MdClose, MdKeyboardArrowDown, MdSettings,
-  MdBarChart,
+  MdBarChart, MdArticle,
 } from 'react-icons/md'
 
 const NAV_ITEMS = [
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { href: '/admin/patients',    label: 'Patients',         icon: MdPersonPin },
   { href: '/admin/appointments',label: 'Appointments',     icon: MdCalendarMonth },
   { href: '/admin/map',         label: 'Map',              icon: MdMap },
+  { href: '/admin/information',  label: 'Hospital Info',    icon: MdArticle },
   { href: '/admin/reports',     label: 'Reports',          icon: MdBarChart },
   { href: '/admin/settings',    label: 'Settings',         icon: MdSettings },
 ]

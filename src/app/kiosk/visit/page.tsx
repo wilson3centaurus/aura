@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
-  FaChevronLeft, FaMagnifyingGlass, FaCheck, FaXmark, FaClock,
+  FaChevronLeft, FaMagnifyingGlass, FaCheck, FaClock,
   FaQrcode, FaIdCard, FaPhone, FaUser, FaArrowRight, FaBed
 } from 'react-icons/fa6'
 import { MdPersonSearch, MdLocalHospital, MdDirections, MdClose } from 'react-icons/md'
@@ -124,7 +124,7 @@ export default function KioskVisit() {
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto">
-        <div className="max-w-lg mx-auto space-y-4">
+        <div className="space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <FaMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
@@ -161,7 +161,7 @@ export default function KioskVisit() {
           )}
 
           {results !== null && (
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {results.length > 0 ? results.map((patient: any) => (
                 <div key={patient.id} className="bg-white dark:bg-gray-800/90 rounded-2xl shadow-sm p-5 border border-gray-100 dark:border-gray-700">
                   <div className="flex items-start gap-3 mb-3">
@@ -183,14 +183,6 @@ export default function KioskVisit() {
                       <strong>Room:</strong> {patient.room || '-'}, Bed {patient.bed?.bed_number || '-'}
                     </p>
                   </div>
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold mb-3 ${
-                    patient.visitorsAllowed
-                      ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
-                      : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                  }`}>
-                    {patient.visitorsAllowed ? <FaCheck size={12} /> : <FaXmark size={12} />}
-                    {patient.visitorsAllowed ? 'Visitors Allowed' : 'No Visitors Currently'}
-                  </div>
                   <button
                     onClick={() => openVisitModal(patient)}
                     className="w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition-all"
@@ -209,10 +201,10 @@ export default function KioskVisit() {
         </div>
       </main>
 
-      {/* Visit Modal */}
+      {/* Visit Modal — centered 60% */}
       {selectedPatient && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 rounded-t-3xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl w-[60%] max-h-[85vh] flex flex-col shadow-2xl">
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
               <div>

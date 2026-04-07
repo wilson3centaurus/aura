@@ -49,7 +49,7 @@ export default function KioskDoctors() {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<string>('')
+  const [filterDept, setFilterDept] = useState<string>('')
 
   // Booking flow
   const [bookingDoctor, setBookingDoctor] = useState<Doctor | null>(null)
@@ -135,11 +135,12 @@ export default function KioskDoctors() {
   const filtered = doctors.filter(d => {
     const q = search.toLowerCase()
     const matchSearch = !q || d.user.name.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q) || d.department.name.toLowerCase().includes(q)
-    const matchStatus = !filterStatus || d.status === filterStatus
-    return matchSearch && matchStatus
+    const matchDept = !filterDept || d.department.name === filterDept
+    return matchSearch && matchDept
   })
 
   const available = doctors.filter(d => d.status === 'AVAILABLE')
+  const departments = [...new Set(doctors.map(d => d.department.name))].sort()
 
   // QR result screen
   if (bookingResult && bookingStep === 'qr') {
@@ -346,18 +347,29 @@ export default function KioskDoctors() {
         </div>
       </header>
 
-      {/* Status filter pills */}
+      {/* Department filter pills */}
       <div className="px-5 py-3 flex gap-2 overflow-x-auto border-b border-gray-100 dark:border-[#1a1a1a]">
-        {[['', 'All'], ['AVAILABLE', 'Available'], ['BUSY', 'Busy'], ['ON_BREAK', 'On Break'], ['OFFLINE', 'Offline']].map(([val, label]) => (
+        <button
+          onClick={() => setFilterDept('')}
+          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+            filterDept === ''
+              ? 'bg-[#003d73] text-white'
+              : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
+          }`}
+        >
+          All Departments
+        </button>
+        {departments.map(dept => (
           <button
-            key={val}
-            onClick={() => setFilterStatus(val)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${filterStatus === val
+            key={dept}
+            onClick={() => setFilterDept(dept)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+              filterDept === dept
                 ? 'bg-[#003d73] text-white'
                 : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
-              }`}
+            }`}
           >
-            {label}
+            {dept}
           </button>
         ))}
       </div>
