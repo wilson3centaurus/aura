@@ -51,7 +51,10 @@ html, body {
 /* ─── Kiosk Card ─── */
 .kiosk-card {
   @apply bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800
-         hover:shadow-xl active:scale-[0.97] transition-all duration-200 cursor-pointer;
+         hover:shadow-xl active:scale-[0.97] cursor-pointer;
+  transition: box-shadow 0.2s, transform 0.08s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Full-size icon (used in non-menu kiosk pages) */

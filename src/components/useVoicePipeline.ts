@@ -11,6 +11,7 @@ export interface VoiceMessage {
   id: string
   role: 'user' | 'ai'
   text: string
+  action?: any
 }
 
 const RMS_THRESHOLD = 0.012
@@ -205,6 +206,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
 
       setStatus('Thinking\u2026')
       let aiText = "I'm sorry, I had trouble responding. Please try again."
+      let aiAction: any = null
       try {
         const chatRes = await fetch('/api/ai/chat', {
           method: 'POST',
@@ -218,7 +220,8 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
         if (chatRes.ok) {
           const data = await chatRes.json()
           aiText = data.reply || aiText
-          console.log('[AI] reply:', aiText)
+          aiAction = data.action || null
+          console.log('[AI] reply:', aiText, 'action:', aiAction)
         } else {
           console.error('[AI] HTTP', chatRes.status)
         }
@@ -226,7 +229,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
         console.error('[AI] error:', e)
       }
 
-      setMessages(prev => [...prev, { id: `ai-${Date.now()}`, role: 'ai', text: aiText }])
+      setMessages(prev => [...prev, { id: `ai-${Date.now()}`, role: 'ai', text: aiText, action: aiAction }])
       historyRef.current = [...historyRef.current, { role: 'assistant', content: aiText }]
 
       setPhase('speaking')

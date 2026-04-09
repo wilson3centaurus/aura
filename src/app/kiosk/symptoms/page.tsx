@@ -15,6 +15,7 @@ interface AssessmentResult {
   possibleConditions: string[]
   suggestedMeds: string[]
   goToPharmacy: boolean
+  aiGenerated?: boolean
 }
 
 export default function KioskSymptoms() {
@@ -24,15 +25,81 @@ export default function KioskSymptoms() {
   const [severity, setSeverity] = useState(5)
   const [duration, setDuration] = useState('')
   const [additionalSymptoms, setAdditionalSymptoms] = useState<string[]>([])
+  const [otherText, setOtherText] = useState('')
   const [result, setResult] = useState<AssessmentResult | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
 
-  const additionalOptions = ['Fever', 'Nausea', 'Dizziness', 'Difficulty Breathing', 'Vomiting', 'Fatigue', 'Loss of appetite']
+  const additionalOptions = [
+    'Fever', 'Nausea', 'Dizziness', 'Difficulty Breathing', 'Vomiting',
+    'Fatigue', 'Loss of appetite', 'Chest Pain', 'Headache', 'Body Aches',
+    'Swollen Limbs', 'Rash / Itching', 'Blurred Vision', 'Weight Loss',
+    'Night Sweats', 'Blood in Urine/Stool', 'Coughing', 'Sore Throat',
+  ]
 
   const toggleSymptom = (s: string) => {
     setAdditionalSymptoms(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   }
 
+  const runAIAssessment = async (symptoms: string) => {
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `SYMPTOM TRIAGE REQUEST — Respond ONLY in this exact JSON format, no other text:
+{"urgency":"EMERGENCY|URGENT|MODERATE|ROUTINE","department":"department name","message":"advice for patient","possibleConditions":["condition1","condition2","condition3"],"suggestedMeds":["med1","med2"],"goToPharmacy":true/false}
+
+Patient info: Severity ${severity}/10, Duration: ${duration || 'not specified'}, Additional symptoms: ${additionalSymptoms.join(', ') || 'none'}.
+Main complaint: ${symptoms}`,
+          history: [],
+        }),
+      })
+      const data = await res.json()
+      const reply = data.reply || ''
+      // Extract JSON from reply
+      const jsonMatch = reply.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        setResult({
+          urgency: parsed.urgency || 'MODERATE',
+          department: parsed.department || 'General Out-Patient Department (OPD)',
+          message: parsed.message || 'Please see a doctor for proper evaluation.',
+          possibleConditions: parsed.possibleConditions || [],
+          suggestedMeds: parsed.suggestedMeds || [],
+          goToPharmacy: parsed.goToPharmacy ?? false,
+          aiGenerated: true,
+        })
+        setStep('result')
+        setAiLoading(false)
+        return
+      }
+    } catch {}
+    // Fallback if AI fails
+    setResult({
+      urgency: severity >= 7 ? 'URGENT' : 'MODERATE',
+      department: 'General Out-Patient Department (OPD)',
+      message: 'We recommend seeing a doctor for proper evaluation of your symptoms.',
+      possibleConditions: ['Requires clinical assessment'],
+      suggestedMeds: [],
+      goToPharmacy: false,
+    })
+    setStep('result')
+    setAiLoading(false)
+  }
+
   const runAssessment = () => {
+    // For "other" or new categories that need AI, use AI assessment
+    const aiCategories = ['other', 'skin', 'eye', 'ear', 'dental', 'mental', 'stomach', 'sti']
+    if (aiCategories.includes(selectedCategory)) {
+      const catName = SYMPTOM_CATEGORIES.find(c => c.id === selectedCategory)?.name || selectedCategory
+      const desc = selectedCategory === 'other' && otherText.trim()
+        ? otherText.trim()
+        : `${catName}. ${additionalSymptoms.join(', ')}`
+      runAIAssessment(desc)
+      return
+    }
+
     let urgency: AssessmentResult['urgency'] = 'ROUTINE'
     let department = 'General Out-Patient Department (OPD)'
     let possibleConditions: string[] = []
@@ -48,23 +115,18 @@ export default function KioskSymptoms() {
       urgency = 'EMERGENCY'
       department = 'Emergency Department'
       possibleConditions = ['Severe Asthma Attack', 'Pneumonia', 'Pulmonary Embolism', 'Anaphylaxis']
-      goToPharmacy = false
     } else if (selectedCategory === 'injury' && severity >= 8) {
       urgency = 'EMERGENCY'
       department = 'Emergency / Casualty'
       possibleConditions = ['Severe Trauma', 'Fracture', 'Internal Bleeding', 'Head Injury']
-      goToPharmacy = false
     } else if (selectedCategory === 'maternity') {
       urgency = 'URGENT'
       department = 'Maternity Ward'
       possibleConditions = ['Active Labour', 'Pre-eclampsia', 'Pregnancy Complications', 'Ectopic Pregnancy']
-      goToPharmacy = false
     } else if (selectedCategory === 'fever') {
       if (severity >= 7 || (hasFever && hasNausea && hasDizzy)) {
         urgency = 'URGENT'
-        department = 'General Out-Patient Department (OPD)'
         possibleConditions = ['Malaria', 'Typhoid Fever', 'Severe Viral Infection', 'Urinary Tract Infection']
-        goToPharmacy = false
       } else {
         urgency = 'MODERATE'
         possibleConditions = ['Malaria', 'Common Flu', 'Typhoid Fever', 'Upper Respiratory Infection']
@@ -76,7 +138,6 @@ export default function KioskSymptoms() {
         urgency = 'URGENT'
         department = 'Paediatrics Ward'
         possibleConditions = ['Paediatric Malaria', 'Severe Pneumonia', 'Febrile Convulsion', 'Meningitis']
-        goToPharmacy = false
       } else {
         urgency = 'MODERATE'
         department = 'Paediatrics Clinic'
@@ -91,7 +152,6 @@ export default function KioskSymptoms() {
         possibleConditions = hasFever
           ? ['Appendicitis', 'Pyelonephritis (Kidney Infection)', 'Peritonitis']
           : ['Kidney Stones', 'Gallstones', 'Peptic Ulcer', 'Acute Abdomen']
-        goToPharmacy = false
       } else if (severity >= 5) {
         urgency = 'MODERATE'
         possibleConditions = ['Tension Headache', 'Gastritis', 'Muscle Strain', 'Menstrual Cramps']
@@ -106,7 +166,6 @@ export default function KioskSymptoms() {
     } else if (selectedCategory === 'cold') {
       if (severity >= 7 || hasFever) {
         urgency = 'MODERATE'
-        department = 'General Out-Patient Department (OPD)'
         possibleConditions = ['Influenza (Flu)', 'Sinusitis', 'Bronchitis', 'Early Pneumonia']
         suggestedMeds = severity >= 7 ? [] : ['Paracetamol 500 mg', 'Vitamin C 500 mg', 'Saline nasal drops']
         goToPharmacy = severity < 7
@@ -121,7 +180,6 @@ export default function KioskSymptoms() {
         urgency = 'URGENT'
         department = 'Emergency / Casualty'
         possibleConditions = ['Laceration / Deep Cut', 'Sprain or Strain', 'Fracture (possible)', 'Concussion']
-        goToPharmacy = false
       } else {
         urgency = 'ROUTINE'
         possibleConditions = ['Minor Bruise', 'Superficial Abrasion', 'Soft Tissue Injury']
@@ -138,7 +196,6 @@ export default function KioskSymptoms() {
       if (severity >= 7 || hasFever) {
         urgency = 'URGENT'
         possibleConditions = ['Systemic Infection', 'Viral Illness', 'Malaria (rule out)']
-        goToPharmacy = false
       } else {
         urgency = 'ROUTINE'
         possibleConditions = ['Minor Illness', 'Viral Syndrome', 'Nutritional Deficiency']
@@ -222,6 +279,22 @@ export default function KioskSymptoms() {
 
         {step === 'details' && (
           <div className="max-w-lg mx-auto space-y-6">
+            {/* "Other" text input — describe your symptoms */}
+            {selectedCategory === 'other' && (
+              <div>
+                <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Describe what you're feeling
+                </label>
+                <textarea
+                  value={otherText}
+                  onChange={e => setOtherText(e.target.value)}
+                  placeholder="e.g. I have a burning sensation when urinating, sharp pain in my left side, my ankles are very swollen..."
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                />
+              </div>
+            )}
+
             <div>
               <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 How severe is it? (1-10)
@@ -281,9 +354,13 @@ export default function KioskSymptoms() {
               </div>
             </div>
 
-            <button onClick={runAssessment}
-              className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 active:scale-95 transition-all shadow-lg">
-              Get Assessment
+            <button onClick={runAssessment} disabled={aiLoading || (selectedCategory === 'other' && !otherText.trim())}
+              className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 active:scale-95 transition-all shadow-lg disabled:opacity-60 flex items-center justify-center gap-3">
+              {aiLoading ? (
+                <><span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" /> AI is analysing your symptoms…</>
+              ) : (
+                'Get Assessment'
+              )}
             </button>
           </div>
         )}
@@ -296,6 +373,9 @@ export default function KioskSymptoms() {
               <div className="flex items-center gap-2 mb-1">
                 <MdMedicalServices className="text-xl" />
                 <h2 className="text-base font-bold">Assessment Result</h2>
+                {result.aiGenerated && (
+                  <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold">🤖 AI Powered</span>
+                )}
               </div>
               <div className="flex items-center gap-2 text-2xl font-black my-2">
                 <div className={`w-4 h-4 rounded-full ${urgencyDots[result.urgency]} flex-shrink-0`} />

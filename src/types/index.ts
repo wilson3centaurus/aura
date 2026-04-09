@@ -43,7 +43,14 @@ export const SYMPTOM_CATEGORIES = [
   { id: 'chronic', name: 'Chronic Condition Follow-up', icon: '💊' },
   { id: 'maternity', name: 'Maternity / Pregnancy', icon: '🤰' },
   { id: 'child', name: 'Child Health Issue', icon: '👶' },
-  { id: 'other', name: 'Other', icon: '📋' },
+  { id: 'skin', name: 'Skin / Rash / Allergy', icon: '🔴' },
+  { id: 'eye', name: 'Eye Problem', icon: '👁️' },
+  { id: 'ear', name: 'Ear / Nose / Throat', icon: '👂' },
+  { id: 'dental', name: 'Dental / Tooth Pain', icon: '🦷' },
+  { id: 'mental', name: 'Mental Health / Anxiety', icon: '🧠' },
+  { id: 'stomach', name: 'Stomach / Digestive', icon: '🤢' },
+  { id: 'sti', name: 'STI / Sexual Health', icon: '🩺' },
+  { id: 'other', name: 'Other / Not Listed', icon: '📋' },
 ]
 
 export const FACILITIES = [

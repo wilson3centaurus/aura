@@ -41,7 +41,7 @@ export default function KioskWelcome() {
 
           {/* Hospital name — dominant */}
           <div className="flex-1 min-w-0">
-            <p className="text-white font-black text-5xl leading-none tracking-tight">Mutare Provincial Hospital</p>
+            <p className="text-white font-black text-5xl leading-none tracking-tight text-center">Mutare Provincial Hospital</p>
             <div className="flex items-center gap-3 mt-1.5">
               <div className="h-px flex-1 bg-gradient-to-r from-white/40 to-transparent" />
               <p className="text-white/55 text-sm font-medium whitespace-nowrap">Ministry of Health &amp; Child Care · Zimbabwe</p>

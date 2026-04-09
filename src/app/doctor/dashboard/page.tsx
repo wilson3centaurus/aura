@@ -314,7 +314,7 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     loadData()
-    const interval = setInterval(loadData, 20000) // reduced from 10s
+    const interval = setInterval(loadData, 5000)
     return () => clearInterval(interval)
   }, [loadData])
 

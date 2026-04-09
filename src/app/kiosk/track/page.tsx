@@ -87,7 +87,7 @@ function TrackContent() {
 
   useEffect(() => {
     fetchStatus()
-    const interval = setInterval(() => fetchStatus(true), 15000)
+    const interval = setInterval(() => fetchStatus(true), 5000)
     return () => clearInterval(interval)
   }, [qr])
 

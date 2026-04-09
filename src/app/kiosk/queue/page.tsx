@@ -32,7 +32,7 @@ export default function KioskQueue() {
       fetch('/api/queue?status=WAITING,CALLED,IN_PROGRESS')
         .then(res => res.json())
         .then(data => { if (Array.isArray(data)) setQueue(data) })
-    }, 15000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [])
 

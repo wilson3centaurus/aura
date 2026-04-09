@@ -85,13 +85,14 @@ About Mutare Provincial Hospital (historical facts — answer confidently):
 Mutare Provincial Hospital was established in 1902 during the colonial era and was originally known as Umtali General Hospital — named after the city's former colonial name, Umtali. It is a government referral hospital operating under Zimbabwe's Ministry of Health and Child Care (MoHCC). It is the main public referral centre for Manicaland Province, located along Herbert Chitepo Street in Mutare city. The hospital has over 400 beds and serves a large catchment population across Manicaland. It offers services including general medicine, surgery, maternity, paediatrics, orthopaedics, ophthalmology, dental, and more. The hospital has been progressively modernised and expanded since independence in 1980.
 
 Rules:
-1. Bookings: "Head back to the main kiosk screen and tap 'See a Doctor' — it only takes a minute."
+1. Bookings: When a patient wants to book, call list_doctors first (filtered by department/specialty if they mentioned one). Present the doctors naturally by name and specialty, then ask which one they'd like. Once they choose, ask for their full name, then call book_appointment. Give them their code and tell them to remember it.
 2. Directions: Also call show_map AND give a verbal turn-by-turn hint in your reply.
 3. Appointment tracking: ask for their 4-letter code (like AB12), then call check_appointment.
 4. Fees: ALWAYS quote the exact price from the fee schedule above. Never say you don't have access to fee information.
 5. History/facts: Use the historical facts above to answer questions about when the hospital was built, who founded it, etc.
 6. If asked something you genuinely don't know (not in the data above), call search_web to look it up — don't make things up.
-7. NEVER output raw function call tags like <function=...> in your reply text. Use the proper tool mechanism — never type function syntax in your response.`
+7. NEVER output raw function call tags like <function=...> in your reply text. Use the proper tool mechanism — never type function syntax in your response.
+8. When listing doctors, mention their name, specialty, and department conversationally — never dump raw IDs or JSON.`
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -118,6 +119,37 @@ Rules:
           parameters: { type: 'object', properties: { query: { type: 'string', description: 'The search query to look up' } }, required: ['query'] },
         },
       },
+      {
+        type: 'function',
+        function: {
+          name: 'list_doctors',
+          description: 'Lists available doctors at the hospital optionally filtered by department or specialty. Call this when a patient wants to see a doctor or book an appointment so they can choose.',
+          parameters: {
+            type: 'object',
+            properties: {
+              department: { type: 'string', description: 'Filter by department name e.g. "Maternity", "Surgery"' },
+              specialty: { type: 'string', description: 'Filter by doctor specialty e.g. "Orthopedics", "Pediatrics"' },
+            },
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'book_appointment',
+          description: 'Books an appointment for a patient with a specific doctor. Ask the patient for their name first, then which doctor or department they want.',
+          parameters: {
+            type: 'object',
+            properties: {
+              doctor_id: { type: 'string', description: 'The doctor ID to book with' },
+              patient_name: { type: 'string', description: 'Full name of the patient' },
+              patient_phone: { type: 'string', description: 'Patient phone number (optional)' },
+              symptoms: { type: 'string', description: 'Brief description of symptoms (optional)' },
+            },
+            required: ['doctor_id', 'patient_name'],
+          },
+        },
+      },
     ]
 
     const chatMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -129,6 +161,66 @@ Rules:
       { role: 'user', content: message.slice(0, 1000) },
     ]
 
+    const normalizedMessage = message.toLowerCase()
+
+    // Fast-path common kiosk tasks so they still work when the LLM is slow or rate-limited.
+    if (/(book|appointment|see a doctor|doctor appointment)/i.test(normalizedMessage)) {
+      const doctorsRes = await fetch(new URL('/api/doctors', request.url), { cache: 'no-store' })
+      const doctorsData = doctorsRes.ok ? await doctorsRes.json() : []
+      const doctors = (Array.isArray(doctorsData) ? doctorsData : [])
+        .map((doctor: any) => {
+          if (!doctor || typeof doctor !== 'object' || doctor.status === 'OFFLINE') return null
+          const departmentSource = Array.isArray(doctor.department) ? doctor.department[0] : doctor.department
+          const userSource = Array.isArray(doctor.user) ? doctor.user[0] : doctor.user
+          return {
+            id: doctor.id,
+            name: userSource?.name ?? 'Unknown',
+            specialty: doctor.specialty,
+            department: departmentSource?.name ?? 'General',
+            room: doctor.room_number,
+            status: doctor.status,
+          }
+        })
+        .filter(Boolean)
+
+      if (doctors.length) {
+        return NextResponse.json({
+          reply: "These are the doctors available right now. Tell me which doctor or department you want.",
+          action: { type: 'DOCTORS_LIST', doctors },
+        })
+      }
+    }
+
+    const directLocationTerms = [
+      'pharmacy', 'toilet', 'toilets', 'bathroom', 'restroom', 'washroom', 'laboratory', 'lab',
+      'radiology', 'emergency', 'maternity', 'chapel', 'cafeteria', 'parking', 'main entrance', 'outpatient',
+    ]
+    const matchedLocationTerm = directLocationTerms.find(term => normalizedMessage.includes(term))
+    if ((/where|direction|locat|find|take me|show me/i.test(normalizedMessage) || matchedLocationTerm) && matchedLocationTerm) {
+      const searchTerms = matchedLocationTerm.match(/toilet|bathroom|restroom|washroom/)
+        ? ['toilet', 'toilets', 'bathroom', 'restroom', 'washroom']
+        : [matchedLocationTerm]
+      const { data: pins } = await supabase
+        .from('location_pins')
+        .select('name, category, description, latitude, longitude, written_directions, floor')
+        .eq('is_active', true)
+
+      const matchedPin = (pins ?? []).find((pin: any) => {
+        const haystack = [pin?.name, pin?.category, pin?.description, pin?.written_directions]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return searchTerms.some(term => haystack.includes(term))
+      })
+
+      if (matchedPin?.latitude != null && matchedPin?.longitude != null) {
+        return NextResponse.json({
+          reply: `${matchedPin.name} is shown on the screen below with directions.`,
+          action: { type: 'MAP', name: matchedPin.name, lat: matchedPin.latitude, lng: matchedPin.longitude },
+        })
+      }
+    }
+
     let aiResponse = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: chatMessages,
@@ -138,59 +230,205 @@ Rules:
       temperature: 0.9,
     })
 
-    let actionPayload: any = null
-    const toolCalls = aiResponse.choices[0].message.tool_calls
+    // ── Reusable tool executor ──
+    async function executeTool(name: string, args: any): Promise<{ result: string; action: any | null }> {
+      if (name === 'show_map') {
+        const requestedName = String(args.location_name || '').trim().toLowerCase()
+        const searchTerms = requestedName.match(/toilet|bathroom|restroom|washroom/)
+          ? ['toilet', 'toilets', 'bathroom', 'restroom', 'washroom']
+          : [requestedName]
 
-    if (toolCalls?.length) {
-      const call = toolCalls[0] as any
-      const args = JSON.parse(call.function.arguments)
-      let toolResult = ''
+        const { data: pins } = await supabase
+          .from('location_pins')
+          .select('name, category, description, latitude, longitude, written_directions, floor')
+          .eq('is_active', true)
 
-      if (call.function.name === 'show_map') {
-        const { data } = await supabase.from('departments').select('name, latitude, longitude, location, floor').ilike('name', `%${args.location_name}%`).limit(1).single()
-        if (data?.latitude) {
-          toolResult = `Found: ${data.name} on ${data.floor ?? 'ground floor'}, ${data.location ?? 'main building'}. Map is now shown on screen.`
-          actionPayload = { type: 'MAP', name: data.name, lat: data.latitude, lng: data.longitude }
-        } else {
-          toolResult = `No GPS coordinates found for "${args.location_name}". Provide verbal directions and suggest asking at reception.`
+        const matchedPin = (pins ?? []).find((pin: any) => {
+          const haystack = [pin.name, pin.category, pin.description, pin.written_directions]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+          return searchTerms.some(term => haystack.includes(term))
+        })
+
+        if (matchedPin?.latitude != null && matchedPin?.longitude != null) {
+          return {
+            result: `Found: ${matchedPin.name} on ${matchedPin.floor ?? 'ground floor'}. Map is now shown on screen.${matchedPin.written_directions ? ` Directions: ${matchedPin.written_directions}.` : ''}`,
+            action: { type: 'MAP', name: matchedPin.name, lat: matchedPin.latitude, lng: matchedPin.longitude },
+          }
         }
-      } else if (call.function.name === 'check_appointment') {
+
+        const { data: departments } = await supabase
+          .from('departments')
+          .select('name, latitude, longitude, location, floor, written_directions')
+
+        const matchedDepartment = (departments ?? []).find((department: any) => {
+          const haystack = [department.name, department.location, department.written_directions]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+          return searchTerms.some(term => haystack.includes(term))
+        })
+
+        if (matchedDepartment?.latitude != null && matchedDepartment?.longitude != null) {
+          return {
+            result: `Found: ${matchedDepartment.name} on ${matchedDepartment.floor ?? 'ground floor'}, ${matchedDepartment.location ?? 'main building'}. Map is now shown on screen.${matchedDepartment.written_directions ? ` Directions: ${matchedDepartment.written_directions}.` : ''}`,
+            action: { type: 'MAP', name: matchedDepartment.name, lat: matchedDepartment.latitude, lng: matchedDepartment.longitude },
+          }
+        }
+
+        return { result: `No GPS coordinates found for "${args.location_name}". Provide verbal directions and suggest asking at reception.`, action: null }
+      }
+      if (name === 'check_appointment') {
         const { data } = await supabase.from('appointments').select(`qr_code, status, scheduled_at, doctor:doctors!appointments_doctor_id_fkey(user:users!doctors_user_id_fkey(name))`).eq('qr_code', (args.code || '').toUpperCase()).single()
         if (data) {
           const doctorName = (data.doctor as any)?.user?.name ?? 'your doctor'
-          toolResult = `Appointment found. Code: ${data.qr_code}. Status: ${data.status}. Doctor: Dr. ${doctorName}. Scheduled: ${data.scheduled_at ? new Date(data.scheduled_at).toLocaleString() : 'time not set'}.`
-          actionPayload = { type: 'APPOINTMENT', id: data.qr_code, status: data.status, doctor: doctorName, time: data.scheduled_at }
-        } else {
-          toolResult = `No appointment found with code "${args.code}". Ask them to double-check their 4-character code.`
+          return { result: `Appointment found. Code: ${data.qr_code}. Status: ${data.status}. Doctor: Dr. ${doctorName}. Scheduled: ${data.scheduled_at ? new Date(data.scheduled_at).toLocaleString() : 'time not set'}.`, action: { type: 'APPOINTMENT', id: data.qr_code, status: data.status, doctor: doctorName, time: data.scheduled_at } }
         }
-      } else if (call.function.name === 'search_web') {
+        return { result: `No appointment found with code "${args.code}". Ask them to double-check their 4-character code.`, action: null }
+      }
+      if (name === 'list_doctors') {
+        const doctorsRes = await fetch(new URL('/api/doctors', request.url), { cache: 'no-store' })
+        const docs = doctorsRes.ok ? await doctorsRes.json() : []
+
+        if (!doctorsRes.ok) {
+          return { result: 'Failed to fetch doctors right now. Suggest trying again or asking at reception.', action: null }
+        }
+
+        const requestedDepartment = String(args.department || '').trim().toLowerCase()
+        const requestedSpecialty = String(args.specialty || '').trim().toLowerCase()
+        const normalizedDocs = (docs ?? []).map((doctor: any) => {
+          if (!doctor || typeof doctor !== 'object') return null
+          const departmentSource = Array.isArray(doctor.department) ? doctor.department[0] : doctor.department
+          const userSource = Array.isArray(doctor.user) ? doctor.user[0] : doctor.user
+          return {
+            id: doctor.id,
+            specialty: doctor.specialty,
+            room: doctor.room_number,
+            status: doctor.status,
+            department: departmentSource?.name ?? 'General',
+            name: userSource?.name ?? 'Unknown',
+          }
+        }).filter((doctor: any) => !!doctor && doctor.status !== 'OFFLINE')
+
+        const filtered = normalizedDocs.filter((doctor: any) => {
+          const matchesDepartment = !requestedDepartment
+            || String(doctor.department || '').toLowerCase().includes(requestedDepartment)
+          const matchesSpecialty = !requestedSpecialty
+            || String(doctor.specialty || '').toLowerCase().includes(requestedSpecialty)
+          return matchesDepartment && matchesSpecialty
+        })
+
+        if (filtered.length) {
+          return { result: `Available doctors:\n${filtered.map((doctor: any) => `- Dr. ${doctor.name} (ID: ${doctor.id}) — ${doctor.specialty}, ${doctor.department}, Room ${doctor.room ?? 'TBD'}, Status: ${doctor.status}`).join('\n')}\n\nAsk the patient which doctor they'd like to book with.`, action: { type: 'DOCTORS_LIST', doctors: filtered.map((doctor: any) => ({ id: doctor.id, name: doctor.name, specialty: doctor.specialty, department: doctor.department, room: doctor.room, status: doctor.status })) } }
+        }
+        return { result: 'No doctors found matching that criteria. Suggest the patient try a different department or check at reception.', action: null }
+      }
+      if (name === 'book_appointment') {
+        const scheduledAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        const dl = () => letters[Math.floor(Math.random() * letters.length)]
+        const shortCode = `${dl()}${dl()}${Math.floor(Math.random() * 90) + 10}`
+        const { data: appt, error: apptErr } = await supabase.from('appointments').insert({
+          patient_name: args.patient_name, patient_phone: args.patient_phone || null,
+          symptoms: args.symptoms || null, doctor_id: args.doctor_id,
+          scheduled_at: scheduledAt, qr_code: shortCode,
+        }).select('*, doctor:doctors!appointments_doctor_id_fkey(user:users!doctors_user_id_fkey(name))').single()
+        if (appt) {
+          const drName = (appt.doctor as any)?.user?.name ?? 'your doctor'
+          return { result: `Appointment booked! Code: ${appt.qr_code}. Doctor: Dr. ${drName}. Scheduled: ${new Date(appt.scheduled_at).toLocaleString()}. Tell the patient to remember their code ${appt.qr_code} for tracking.`, action: { type: 'BOOKING_CONFIRMED', code: appt.qr_code, doctor: drName, time: appt.scheduled_at } }
+        }
+        return { result: `Failed to book: ${apptErr?.message || 'Unknown error'}. Suggest trying again or visiting reception.`, action: null }
+      }
+      if (name === 'search_web') {
         try {
           const q = encodeURIComponent((args.query || '') + ' Zimbabwe')
           const searchRes = await fetch(`https://api.duckduckgo.com/?q=${q}&format=json&no_html=1&skip_disambig=1`, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(5000) })
           const searchData = await searchRes.json()
           const answer = searchData.AbstractText || searchData.Answer || searchData.RelatedTopics?.[0]?.Text || ''
-          toolResult = answer ? `Web result: ${answer.slice(0, 500)}` : 'No specific web result found — answer from your general knowledge.'
+          return { result: answer ? `Web result: ${answer.slice(0, 500)}` : 'No specific web result found — answer from your general knowledge.', action: null }
         } catch {
-          toolResult = 'Web search unavailable — answer from your general knowledge.'
+          return { result: 'Web search unavailable — answer from your general knowledge.', action: null }
         }
       }
-
-      aiResponse = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          ...chatMessages,
-          aiResponse.choices[0].message,
-          { role: 'tool', tool_call_id: call.id, content: toolResult },
-        ],
-        max_tokens: 200,
-        temperature: 0.9,
-      })
+      return { result: 'Unknown tool.', action: null }
     }
 
-    const rawReply = aiResponse.choices[0]?.message?.content?.trim() || "I'm here to help. What do you need today?"
-    // Strip any leaked function-call syntax (Llama occasionally outputs <function=...> in the text)
-    const reply = rawReply.replace(/<function=[^>]*>[\s\S]*?<\/function>/gi, '').replace(/\s+/g, ' ').trim()
-      || "I'm here to help. What do you need today?"
+    let actionPayload: any = null
+    let fallbackReply: string | null = null
+    const toolCalls = aiResponse.choices[0].message.tool_calls
+
+    // Path 1: Model used proper tool-call mechanism
+    if (toolCalls?.length) {
+      const call = toolCalls[0] as any
+      let args: any = {}
+      try {
+        const rawArgs = String(call.function.arguments || '').trim()
+        args = rawArgs ? JSON.parse(rawArgs) : {}
+      } catch {
+        args = {}
+      }
+      const { result: toolResult, action } = await executeTool(call.function.name, args)
+      actionPayload = action
+      fallbackReply = action?.type === 'MAP'
+        ? `${action.name} is shown on the screen below with directions.`
+        : action?.type === 'APPOINTMENT'
+          ? `I found your appointment. The details are shown on the screen below.`
+          : action?.type === 'DOCTORS_LIST'
+            ? 'These are the doctors available right now. Tell me which doctor or department you want.'
+            : action?.type === 'BOOKING_CONFIRMED'
+              ? `Your appointment is booked. Your code is ${action.code}.`
+              : toolResult
+
+      aiResponse = {
+        choices: [{ message: { content: fallbackReply } }],
+      } as any
+    }
+
+    const rawReply = aiResponse.choices[0]?.message?.content?.trim() || fallbackReply || "I'm here to help. What do you need today?"
+
+    // Path 2: Llama leaked <function=...> as text instead of using tools.
+    // It may return any of these malformed variants:
+    //   <function=show_map>{"location_name":"toilets"}</function>
+    //   <function=show_map{"location_name":"toilets"}</function>
+    //   <function=list_doctors></function>
+    const leakedTagRegex = /<function=(\w+)(?:\s*(\{[\s\S]*?\}))?>([\s\S]*?)<\/function>/gi
+    let leakedMatch: RegExpExecArray | null
+    while ((leakedMatch = leakedTagRegex.exec(rawReply)) !== null) {
+      if (actionPayload) break
+      try {
+        const fnName = leakedMatch[1]
+        const inlineArgs = leakedMatch[2]?.trim()
+        const bodyText = leakedMatch[3]?.trim()
+        const rawArgs = inlineArgs || (bodyText?.startsWith('{') ? bodyText : '{}')
+        const fnArgs = JSON.parse(rawArgs)
+        const { action } = await executeTool(fnName, fnArgs)
+        if (action) actionPayload = action
+      } catch {}
+    }
+
+    // Also handle malformed tags missing the > before the JSON body.
+    if (!actionPayload) {
+      const malformedInlineRegex = /<function=(\w+)\s*(\{[\s\S]*?\})\s*<\/function>/gi
+      let malformedMatch: RegExpExecArray | null
+      while ((malformedMatch = malformedInlineRegex.exec(rawReply)) !== null) {
+        if (actionPayload) break
+        try {
+          const fnName = malformedMatch[1]
+          const fnArgs = JSON.parse(malformedMatch[2])
+          const { action } = await executeTool(fnName, fnArgs)
+          if (action) actionPayload = action
+        } catch {}
+      }
+    }
+
+    // Strip all leaked function-call syntax from displayed reply.
+    const reply = rawReply
+      .replace(/<function=\w+(?:\s*\{[\s\S]*?\})?>[\s\S]*?<\/function>/gi, '')
+      .replace(/<function=\w+\s*\{[\s\S]*?\}\s*<\/function>/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim() || "I'm here to help. What do you need today?"
+
     return NextResponse.json({ reply, action: actionPayload })
   } catch (err: any) {
     console.error('AI Chat error:', err?.message)

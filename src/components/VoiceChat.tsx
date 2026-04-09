@@ -1,12 +1,110 @@
 ﻿'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import AuraLogo from './AuraLogo'
 import { useVoicePipeline } from './useVoicePipeline'
 
 interface Props {
   onClose: () => void
   onNavigate: (href: string) => void
+}
+
+function MapCard({ action }: { action: any }) {
+  const [qrUrl, setQrUrl] = useState('')
+  const KIOSK_LAT = process.env.NEXT_PUBLIC_KIOSK_LAT || '-18.9718'
+  const KIOSK_LNG = process.env.NEXT_PUBLIC_KIOSK_LNG || '32.6703'
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${KIOSK_LAT},${KIOSK_LNG}&destination=${action.lat},${action.lng}&travelmode=walking`
+
+  useEffect(() => {
+    import('qrcode').then(mod => {
+      const QR = (mod as any).default ?? mod
+      return QR.toDataURL(mapsUrl, { width: 140, margin: 1, color: { dark: '#003d73', light: '#ffffff' } })
+    }).then(setQrUrl).catch(() => {})
+  }, [mapsUrl])
+
+  return (
+    <div className="mt-2 rounded-2xl overflow-hidden border border-white/15 bg-white/5 max-w-[85%]">
+      <div className="bg-blue-600/30 px-4 py-2 flex items-center gap-2">
+        <span className="text-lg">📍</span>
+        <span className="text-white font-bold text-sm flex-1 truncate">{action.name}</span>
+      </div>
+      <div className="p-3 flex gap-3">
+        {qrUrl && (
+          <div className="flex flex-col items-center gap-1">
+            <img src={qrUrl} alt="QR" className="w-24 h-24 rounded-lg" />
+            <span className="text-[9px] text-white/40">Scan for directions</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition-colors">
+            🗺️ Open Google Maps
+          </a>
+          <div className="text-[10px] text-white/40">
+            Walking directions from kiosk
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AppointmentCard({ action }: { action: any }) {
+  return (
+    <div className="mt-2 rounded-2xl overflow-hidden border border-white/15 bg-white/5 max-w-[85%]">
+      <div className="bg-emerald-600/30 px-4 py-2 flex items-center gap-2">
+        <span className="text-lg">🎫</span>
+        <span className="text-white font-bold text-sm">Appointment: {action.id}</span>
+      </div>
+      <div className="p-3 space-y-1 text-xs text-white/70">
+        <p><span className="text-white/40">Status:</span> <span className="font-bold text-white">{action.status}</span></p>
+        <p><span className="text-white/40">Doctor:</span> Dr. {action.doctor}</p>
+        {action.time && <p><span className="text-white/40">Time:</span> {new Date(action.time).toLocaleString()}</p>}
+      </div>
+    </div>
+  )
+}
+
+function DoctorsListCard({ action }: { action: any }) {
+  return (
+    <div className="mt-2 rounded-2xl overflow-hidden border border-white/15 bg-white/5 max-w-[85%]">
+      <div className="bg-blue-600/30 px-4 py-2 flex items-center gap-2">
+        <span className="text-lg">👨‍⚕️</span>
+        <span className="text-white font-bold text-sm">Available Doctors ({action.doctors?.length ?? 0})</span>
+      </div>
+      <div className="p-2 space-y-1.5 max-h-48 overflow-y-auto">
+        {(action.doctors ?? []).map((d: any) => (
+          <div key={d.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+            <div className={`w-2 h-2 rounded-full shrink-0 ${d.status === 'AVAILABLE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-xs font-bold truncate">Dr. {d.name}</p>
+              <p className="text-white/50 text-[10px] truncate">{d.specialty} · {d.department ?? 'General'} · Room {d.room ?? 'TBD'}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BookingConfirmedCard({ action }: { action: any }) {
+  return (
+    <div className="mt-2 rounded-2xl overflow-hidden border border-white/15 bg-white/5 max-w-[85%]">
+      <div className="bg-emerald-600/30 px-4 py-2 flex items-center gap-2">
+        <span className="text-lg">✅</span>
+        <span className="text-white font-bold text-sm">Booking Confirmed!</span>
+      </div>
+      <div className="p-3 space-y-1.5 text-xs text-white/70">
+        <div className="flex items-center gap-2">
+          <span className="text-white/40">Your Code:</span>
+          <span className="font-black text-xl text-emerald-400 tracking-widest">{action.code}</span>
+        </div>
+        <p><span className="text-white/40">Doctor:</span> Dr. {action.doctor}</p>
+        {action.time && <p><span className="text-white/40">Scheduled:</span> {new Date(action.time).toLocaleString()}</p>}
+        <p className="text-[10px] text-white/40 pt-1">Remember this code to track your appointment</p>
+      </div>
+    </div>
+  )
 }
 
 export default function VoiceChat({ onClose, onNavigate }: Props) {
@@ -91,19 +189,26 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
         )}
 
         {messages.map(msg => (
-          <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'ai' && (
-              <div className="w-7 h-7 rounded-full bg-blue-600/40 border border-blue-400/30 flex items-center justify-center shrink-0 mb-0.5 text-[9px] font-black text-blue-300">
-                AI
+          <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+            <div className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'ai' && (
+                <div className="w-7 h-7 rounded-full bg-blue-600/40 border border-blue-400/30 flex items-center justify-center shrink-0 mb-0.5 text-[9px] font-black text-blue-300">
+                  AI
+                </div>
+              )}
+              <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                msg.role === 'user'
+                  ? 'bg-blue-600 text-white rounded-br-sm'
+                  : 'bg-white/8 text-blue-50 rounded-bl-sm border border-white/10'
+              }`}>
+                {msg.text}
               </div>
-            )}
-            <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-              msg.role === 'user'
-                ? 'bg-blue-600 text-white rounded-br-sm'
-                : 'bg-white/8 text-blue-50 rounded-bl-sm border border-white/10'
-            }`}>
-              {msg.text}
             </div>
+            {/* Interactive action cards */}
+            {msg.action?.type === 'MAP' && <MapCard action={msg.action} />}
+            {msg.action?.type === 'APPOINTMENT' && <AppointmentCard action={msg.action} />}
+            {msg.action?.type === 'DOCTORS_LIST' && <DoctorsListCard action={msg.action} />}
+            {msg.action?.type === 'BOOKING_CONFIRMED' && <BookingConfirmedCard action={msg.action} />}
           </div>
         ))}
 

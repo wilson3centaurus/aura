@@ -363,6 +363,43 @@ function KioskAssistantInner() {
                     <div className="h-32 bg-gray-200" style={{ background: `center/cover url('https://maps.googleapis.com/maps/api/staticmap?center=${m.action.lat},${m.action.lng}&zoom=17&size=400x150&markers=color:red%7C${m.action.lat},${m.action.lng}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}')` }} />
                   </div>
                 )}
+                {m.action?.type === 'APPOINTMENT' && (
+                  <div className="mt-2 w-full max-w-sm rounded-xl overflow-hidden border border-gray-200 dark:border-[#333] shadow-sm ml-2">
+                    <div className="bg-emerald-600 text-white px-4 py-2 text-sm font-bold flex items-center gap-2">🎫 Appointment: {m.action.id}</div>
+                    <div className="p-3 space-y-1 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1a1a1a]">
+                      <p><span className="text-gray-400">Status:</span> <span className="font-bold">{m.action.status}</span></p>
+                      <p><span className="text-gray-400">Doctor:</span> Dr. {m.action.doctor}</p>
+                      {m.action.time && <p><span className="text-gray-400">Time:</span> {new Date(m.action.time).toLocaleString()}</p>}
+                    </div>
+                  </div>
+                )}
+                {m.action?.type === 'DOCTORS_LIST' && (
+                  <div className="mt-2 w-full max-w-sm rounded-xl overflow-hidden border border-gray-200 dark:border-[#333] shadow-sm ml-2">
+                    <div className="bg-blue-600 text-white px-4 py-2 text-sm font-bold flex items-center gap-2">👨‍⚕️ Available Doctors ({m.action.doctors?.length ?? 0})</div>
+                    <div className="p-2 space-y-1.5 max-h-48 overflow-y-auto bg-white dark:bg-[#1a1a1a]">
+                      {(m.action.doctors ?? []).map((d: any) => (
+                        <div key={d.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-[#222] border border-gray-100 dark:border-[#333]">
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${d.status === 'AVAILABLE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-900 dark:text-white text-xs font-bold truncate">Dr. {d.name}</p>
+                            <p className="text-gray-500 text-[10px] truncate">{d.specialty} · {d.department ?? 'General'} · Room {d.room ?? 'TBD'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {m.action?.type === 'BOOKING_CONFIRMED' && (
+                  <div className="mt-2 w-full max-w-sm rounded-xl overflow-hidden border border-gray-200 dark:border-[#333] shadow-sm ml-2">
+                    <div className="bg-emerald-600 text-white px-4 py-2 text-sm font-bold flex items-center gap-2">✅ Booking Confirmed!</div>
+                    <div className="p-3 space-y-1.5 text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1a1a1a]">
+                      <div className="flex items-center gap-2"><span className="text-gray-400">Your Code:</span> <span className="font-black text-lg text-emerald-600 dark:text-emerald-400 tracking-widest">{m.action.code}</span></div>
+                      <p><span className="text-gray-400">Doctor:</span> Dr. {m.action.doctor}</p>
+                      {m.action.time && <p><span className="text-gray-400">Scheduled:</span> {new Date(m.action.time).toLocaleString()}</p>}
+                      <p className="text-[10px] text-gray-400 pt-1">Remember this code to track your appointment</p>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             {loading && (
