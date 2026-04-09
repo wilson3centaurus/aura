@@ -396,7 +396,7 @@ export default function DoctorDashboard() {
   const handleAttendConflict = async () => {
     if (!conflictAppt) return
     // End active and start this
-    const currentActive = appointments.find(a => a.status === 'ACCEPTED' && isNowAppointment(a))
+    const currentActive = appointments.find(a => a.status === 'ACCEPTED' && !isFutureAppointment(a))
     if (currentActive) {
       await fetch(`/api/appointments/${currentActive.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -436,7 +436,9 @@ export default function DoctorDashboard() {
   )
 
   const pending = appointments.filter(a => a.status === 'PENDING')
-  const activeAppt = appointments.find(a => a.status === 'ACCEPTED' && isNowAppointment(a)) || null
+  // Any ACCEPTED appointment not scheduled >10 min in the future is the active one
+  // (avoids the "disappears after 10 min" bug with the old ±10 min isNowAppointment window)
+  const activeAppt = appointments.find(a => a.status === 'ACCEPTED' && !isFutureAppointment(a)) || null
   const queuedAppts = appointments.filter(a => a.status === 'ACCEPTED' && isFutureAppointment(a))
   const waitingQueue = queue.filter(q => q.status === 'WAITING')
   const sc = STATUS_CONFIG[profile?.status || 'AVAILABLE'] || STATUS_CONFIG.OFFLINE

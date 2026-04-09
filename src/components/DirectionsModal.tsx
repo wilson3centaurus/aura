@@ -46,14 +46,16 @@ export default function DirectionsModal({ location, onClose }: DirectionsModalPr
 
   useEffect(() => {
     // Dynamically import qrcode only on client
-    import('qrcode').then(QRCode => {
-      QRCode.toDataURL(mapsDirectionsUrl, {
+    // CJS module — must access .default from the ESM namespace
+    import('qrcode').then(mod => {
+      const QRCode = (mod as any).default ?? mod
+      return QRCode.toDataURL(mapsDirectionsUrl, {
         width: 220,
         margin: 2,
         color: { dark: '#1e3a8a', light: '#ffffff' },
         errorCorrectionLevel: 'M',
-      }).then(setQrDataUrl)
-    })
+      })
+    }).then(setQrDataUrl).catch(() => setQrDataUrl(''))
   }, [mapsDirectionsUrl])
 
   const colorClass = CATEGORY_COLORS[location.category] || 'bg-blue-600'

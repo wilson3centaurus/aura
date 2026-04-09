@@ -166,7 +166,7 @@ function TrackContent() {
     <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
       {/* Header */}
       <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4">
-        <div className="flex items-center gap-3 mb-1">
+        <div className="flex items-center gap-3 mb-3">
           <button onClick={() => router.push('/kiosk/menu')}
             className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,8 +188,19 @@ function TrackContent() {
             Refresh
           </button>
         </div>
+
+        {/* Tracking code — big and unmissable */}
+        <div className="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
+          <div>
+            <p className="text-white/50 text-[9px] uppercase tracking-widest font-bold">Your Tracking Code</p>
+            <p className="text-white font-black text-3xl tracking-[0.25em] leading-tight">{qr?.toUpperCase()}</p>
+            <p className="text-white/40 text-[9px] mt-0.5">Keep this code — you can use it to check status anytime</p>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-2xl">🎫</div>
+        </div>
+
         {lastRefreshed && (
-          <p className="text-white/40 text-[9px] mt-1">
+          <p className="text-white/40 text-[9px] mt-2">
             Updated {lastRefreshed.toLocaleTimeString()} · Auto-refreshes every 15s
           </p>
         )}
@@ -321,9 +332,7 @@ function TrackContent() {
           )}
         </div>
 
-        <p className="text-center text-[10px] text-gray-300 dark:text-gray-600 pb-4 mt-6">
-          Appointment ID: {appointment.id.toUpperCase()}
-        </p>
+        <div className="pb-4 mt-6" />
       </main>
     </div>
   )

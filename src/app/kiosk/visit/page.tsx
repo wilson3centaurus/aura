@@ -92,7 +92,8 @@ export default function KioskVisit() {
       ? `https://www.google.com/maps/dir/?api=1&origin=${KIOSK_LAT},${KIOSK_LNG}&destination=${destLat},${destLng}&travelmode=walking`
       : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((fetchedWard?.name || selectedPatient?.ward?.name || 'Hospital Ward') + ' Mutare Provincial Hospital')}`
     try {
-      const QRCode = await import('qrcode')
+      const mod = await import('qrcode')
+      const QRCode = (mod as any).default ?? mod
       const url = await QRCode.toDataURL(mapsUrl, {
         width: 220, margin: 2,
         color: { dark: '#1e3a8a', light: '#ffffff' },

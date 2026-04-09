@@ -23,12 +23,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ reply: "I didn't catch that. Could you try again?" })
     }
 
-    const [docsRes, depsRes] = await Promise.all([
+    const [docsRes, depsRes, feesRes, infoRes] = await Promise.all([
       supabase.from('doctors').select('user:users!doctors_user_id_fkey(name), specialty, room_number, status').neq('status', 'OFFLINE'),
       supabase.from('departments').select('name, location, floor, open_time, close_time'),
+      supabase.from('fees').select('service, category, price, description').order('category'),
+      supabase.from('hospital_info').select('key, value, category').order('category'),
     ])
 
     const langName = language && language !== 'en' ? LANGUAGE_NAMES[language] : null
+
+    // Group fees by category for readable injection
+    const feesByCategory: Record<string, string[]> = {}
+    for (const f of feesRes.data ?? []) {
+      const cat = f.category || 'General'
+      if (!feesByCategory[cat]) feesByCategory[cat] = []
+      const price = f.price != null ? `$${Number(f.price).toFixed(2)}` : 'contact reception'
+      feesByCategory[cat].push(`${f.service}: ${price}${f.description ? ` (${f.description})` : ''}`)
+    }
+    const feesText = Object.entries(feesByCategory)
+      .map(([cat, items]) => `${cat}:\n  ${items.join('\n  ')}`)
+      .join('\n')
+
+    // Group hospital_info by category
+    const infoByCategory: Record<string, string[]> = {}
+    for (const i of infoRes.data ?? []) {
+      const cat = i.category || 'General'
+      if (!infoByCategory[cat]) infoByCategory[cat] = []
+      infoByCategory[cat].push(`${i.key}: ${i.value}`)
+    }
+    const infoText = Object.entries(infoByCategory)
+      .map(([cat, items]) => `${cat}:\n  ${items.join('\n  ')}`)
+      .join('\n')
 
     const systemPrompt = `You are AURA, a real hospital receptionist at Mutare Provincial Hospital in Zimbabwe — you answer the phone like a real person, not an AI.
 You sound like a friendly, confident call-centre agent who genuinely cares and also has a good sense of humour. Think: warm, quick, a little cheeky — like the receptionist everyone loves because she actually helps and makes you laugh.
@@ -50,11 +75,23 @@ ${depsRes.data?.map(d => `- ${d.name}: ${d.floor ?? 'ground floor'}, ${d.locatio
 Doctors on call now:
 ${docsRes.data?.map((d: any) => `- Dr. ${d.user?.name}, ${d.specialty}, Room ${d.room_number ?? 'TBD'} (${d.status})`).join('\n') ?? 'Tell them to ask at reception.'}
 
+Fees & Service Costs (LIVE prices from database — always quote these exactly. Never say you don't know the price):
+${feesText || 'No fees on file — tell them to ask at reception.'}
+
+Hospital Information (LIVE from database):
+${infoText || 'No additional info on file.'}
+
+About Mutare Provincial Hospital (historical facts — answer confidently):
+Mutare Provincial Hospital was established in 1902 during the colonial era and was originally known as Umtali General Hospital — named after the city's former colonial name, Umtali. It is a government referral hospital operating under Zimbabwe's Ministry of Health and Child Care (MoHCC). It is the main public referral centre for Manicaland Province, located along Herbert Chitepo Street in Mutare city. The hospital has over 400 beds and serves a large catchment population across Manicaland. It offers services including general medicine, surgery, maternity, paediatrics, orthopaedics, ophthalmology, dental, and more. The hospital has been progressively modernised and expanded since independence in 1980.
+
 Rules:
 1. Bookings: "Head back to the main kiosk screen and tap 'See a Doctor' — it only takes a minute."
 2. Directions: Also call show_map AND give a verbal turn-by-turn hint in your reply.
 3. Appointment tracking: ask for their 4-letter code (like AB12), then call check_appointment.
-5. NEVER output raw function call tags like <function=...> in your reply text. Use the proper tool mechanism — never type function syntax in your response.`
+4. Fees: ALWAYS quote the exact price from the fee schedule above. Never say you don't have access to fee information.
+5. History/facts: Use the historical facts above to answer questions about when the hospital was built, who founded it, etc.
+6. If asked something you genuinely don't know (not in the data above), call search_web to look it up — don't make things up.
+7. NEVER output raw function call tags like <function=...> in your reply text. Use the proper tool mechanism — never type function syntax in your response.`
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -73,6 +110,14 @@ Rules:
           parameters: { type: 'object', properties: { code: { type: 'string', description: '4-character alphanumeric appointment code e.g. AB12' } }, required: ['code'] },
         },
       },
+      {
+        type: 'function',
+        function: {
+          name: 'search_web',
+          description: 'Search the internet for information not available in the hospital database — use for medical facts, general health questions, or anything not covered by the data above',
+          parameters: { type: 'object', properties: { query: { type: 'string', description: 'The search query to look up' } }, required: ['query'] },
+        },
+      },
     ]
 
     const chatMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -89,7 +134,7 @@ Rules:
       messages: chatMessages,
       tools,
       tool_choice: 'auto',
-      max_tokens: 200,
+      max_tokens: 300,
       temperature: 0.9,
     })
 
@@ -117,6 +162,16 @@ Rules:
           actionPayload = { type: 'APPOINTMENT', id: data.qr_code, status: data.status, doctor: doctorName, time: data.scheduled_at }
         } else {
           toolResult = `No appointment found with code "${args.code}". Ask them to double-check their 4-character code.`
+        }
+      } else if (call.function.name === 'search_web') {
+        try {
+          const q = encodeURIComponent((args.query || '') + ' Zimbabwe')
+          const searchRes = await fetch(`https://api.duckduckgo.com/?q=${q}&format=json&no_html=1&skip_disambig=1`, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(5000) })
+          const searchData = await searchRes.json()
+          const answer = searchData.AbstractText || searchData.Answer || searchData.RelatedTopics?.[0]?.Text || ''
+          toolResult = answer ? `Web result: ${answer.slice(0, 500)}` : 'No specific web result found — answer from your general knowledge.'
+        } catch {
+          toolResult = 'Web search unavailable — answer from your general knowledge.'
         }
       }
 

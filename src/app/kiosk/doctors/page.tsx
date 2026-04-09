@@ -27,11 +27,10 @@ function QRCodeDisplay({ value, size = 160 }: { value: string; size?: number }) 
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    import('qrcode').then(QRCode => {
-      QRCode.toDataURL(value, { width: size, margin: 2, color: { dark: '#003d73', light: '#ffffff' } })
-        .then(url => setQrDataUrl(url))
-        .catch(() => { })
-    }).catch(() => { })
+    import('qrcode').then(mod => {
+      const QRCode = (mod as any).default ?? mod
+      return QRCode.toDataURL(value, { width: size, margin: 2, color: { dark: '#003d73', light: '#ffffff' } })
+    }).then(url => setQrDataUrl(url)).catch(() => {})
   }, [value, size])
 
   if (!qrDataUrl) {

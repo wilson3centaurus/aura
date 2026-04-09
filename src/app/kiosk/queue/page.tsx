@@ -7,13 +7,13 @@ import { MdCampaign } from 'react-icons/md'
 
 interface QueueItem {
   id: string
-  ticketNumber: number
-  patientName: string
+  ticket_number: number
+  patient_name: string
   status: string
   priority: string
   doctor: { user: { name: string } } | null
   department: { name: string }
-  createdAt: string
+  created_at: string
 }
 
 export default function KioskQueue() {
@@ -49,7 +49,7 @@ export default function KioskQueue() {
   }
 
   const filtered = ticketSearch
-    ? queue.filter(q => q.ticketNumber && q.ticketNumber.toString().includes(ticketSearch))
+    ? queue.filter(q => q.ticket_number && q.ticket_number.toString().includes(ticketSearch))
     : queue
 
   return (
@@ -94,7 +94,7 @@ export default function KioskQueue() {
             </div>
             {queue.filter(q => q.status === 'CALLED').map(q => (
               <div key={q.id} className="text-lg font-black text-emerald-800 dark:text-emerald-300">
-                Ticket #{q.ticketNumber} — {q.department.name}
+                Ticket #{q.ticket_number} — {q.department.name}
                 {q.doctor && <span className="text-sm font-normal ml-2">({q.doctor.user.name})</span>}
               </div>
             ))}
@@ -113,7 +113,7 @@ export default function KioskQueue() {
             {filtered.map(item => (
               <div key={item.id} className={`flex items-center gap-4 p-3.5 rounded-2xl bg-white dark:bg-gray-800/90 shadow-sm border border-gray-100 dark:border-gray-700 ${item.status === 'CALLED' ? 'ring-2 ring-emerald-400' : ''}`}>
                 <div className="text-center min-w-[50px]">
-                  <div className="text-xl font-black text-gray-800 dark:text-gray-100">#{item.ticketNumber}</div>
+                  <div className="text-xl font-black text-gray-800 dark:text-gray-100">#{item.ticket_number}</div>
                   <div className={`w-3 h-3 rounded-full mx-auto mt-1 ${priorityColors[item.priority] || 'bg-gray-400'}`} />
                 </div>
                 <div className="flex-1">
