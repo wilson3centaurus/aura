@@ -16,6 +16,10 @@ interface QueueItem {
   created_at: string
 }
 
+function normalizeLookupInput(value: string) {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+}
+
 export default function KioskQueue() {
   const router = useRouter()
   const [ticketSearch, setTicketSearch] = useState('')
@@ -51,6 +55,14 @@ export default function KioskQueue() {
   const filtered = ticketSearch
     ? queue.filter(q => q.ticket_number && q.ticket_number.toString().includes(ticketSearch))
     : queue
+  const looksLikeAppointmentCode = /[A-Z]/.test(ticketSearch) && ticketSearch.length === 4
+
+  const submitLookup = () => {
+    if (!ticketSearch) return
+    if (looksLikeAppointmentCode) {
+      router.push(`/kiosk/track?qr=${ticketSearch}`)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -77,12 +89,26 @@ export default function KioskQueue() {
             <FaMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
             <input
               type="text"
-              placeholder="Enter your ticket number..."
+              placeholder="Ticket number or appointment code..."
               value={ticketSearch}
-              onChange={e => setTicketSearch(e.target.value)}
+              onChange={e => setTicketSearch(normalizeLookupInput(e.target.value))}
+              onKeyDown={e => {
+                if (e.key === 'Enter') submitLookup()
+              }}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
               className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
             />
           </div>
+          {looksLikeAppointmentCode && (
+            <button
+              onClick={submitLookup}
+              className="mt-2 w-full rounded-2xl bg-[#003d73] px-4 py-2.5 text-sm font-bold text-white shadow-sm"
+            >
+              Track appointment {ticketSearch}
+            </button>
+          )}
         </div>
 
         {/* Currently Called */}
@@ -129,7 +155,11 @@ export default function KioskQueue() {
               <div className="text-center py-10">
                 <FaTicket className="text-4xl text-gray-300 dark:text-gray-700 mx-auto mb-2" />
                 <p className="text-gray-400 font-medium">
-                  {ticketSearch ? 'No ticket found with that number.' : 'No patients in queue currently.'}
+                  {ticketSearch
+                    ? looksLikeAppointmentCode
+                      ? 'That looks like an appointment code. Use the button above to open live appointment tracking.'
+                      : 'No ticket found with that number.'
+                    : 'No patients in queue currently.'}
                 </p>
               </div>
             )}

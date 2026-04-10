@@ -6,6 +6,27 @@ import QRCode from 'qrcode'
 
 type Mode = 'select' | 'text' | 'voice' | 'sign'
 
+function BookingQRCode({ code }: { code: string }) {
+  const [qrUrl, setQrUrl] = useState('')
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/host')
+      .then(res => res.json())
+      .then(async ({ origin }) => {
+        const base = origin || (typeof window !== 'undefined' ? window.location.origin : '')
+        const dataUrl = await QRCode.toDataURL(`${base}/kiosk/track?qr=${code}`, { width: 160, margin: 1, color: { dark: '#003d73', light: '#ffffff' } })
+        if (active) setQrUrl(dataUrl)
+      })
+      .catch(() => {})
+
+    return () => { active = false }
+  }, [code])
+
+  if (!qrUrl) return null
+  return <img src={qrUrl} alt="Booking QR" className="w-28 h-28 rounded-xl bg-white p-1 border border-gray-200 dark:border-[#333]" />
+}
+
 // ─── Speak helper (ElevenLabs -> browser speech fallback) ────────────────────
 async function speakReply(text: string) {
   try {
@@ -396,7 +417,8 @@ function KioskAssistantInner() {
                       <div className="flex items-center gap-2"><span className="text-gray-400">Your Code:</span> <span className="font-black text-lg text-emerald-600 dark:text-emerald-400 tracking-widest">{m.action.code}</span></div>
                       <p><span className="text-gray-400">Doctor:</span> Dr. {m.action.doctor}</p>
                       {m.action.time && <p><span className="text-gray-400">Scheduled:</span> {new Date(m.action.time).toLocaleString()}</p>}
-                      <p className="text-[10px] text-gray-400 pt-1">Remember this code to track your appointment</p>
+                      <div className="pt-1"><BookingQRCode code={m.action.code} /></div>
+                      <p className="text-[10px] text-gray-400 pt-1">Scan the QR to track on your phone, or store this appointment number in your head mate.</p>
                     </div>
                   </div>
                 )}

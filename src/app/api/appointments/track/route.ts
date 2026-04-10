@@ -3,7 +3,7 @@ import { supabase } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const qr = searchParams.get('qr')
+  const qr = String(searchParams.get('qr') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
 
   if (!qr) return NextResponse.json({ error: 'QR code required' }, { status: 400 })
 
@@ -13,13 +13,15 @@ export async function GET(request: NextRequest) {
       id, patient_name, patient_phone, symptoms, status,
       scheduled_at, accepted_at, decline_reason, notes, created_at, qr_code,
       doctor:doctors!appointments_doctor_id_fkey(
-        id, specialty, room_number, phone, latitude, longitude,
+        id, specialty, room_number, phone,
         user:users!doctors_user_id_fkey(name),
         department:departments!doctors_department_id_fkey(name, location, floor, latitude, longitude)
       )
     `)
     .eq('qr_code', qr)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   if (error || !data) return NextResponse.json({ error: 'Appointment not found' }, { status: 404 })
   return NextResponse.json(data)

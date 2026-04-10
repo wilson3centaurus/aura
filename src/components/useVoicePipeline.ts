@@ -27,7 +27,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
   const streamRef   = useRef<MediaStream | null>(null)
   const ctxRef      = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
-  const historyRef  = useRef<{ role: string; content: string }[]>([])
+  const historyRef  = useRef<{ role: string; content: string; action?: any }[]>([])
   const langRef     = useRef(language)
 
   useEffect(() => { langRef.current = language }, [language])
@@ -230,7 +230,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       }
 
       setMessages(prev => [...prev, { id: `ai-${Date.now()}`, role: 'ai', text: aiText, action: aiAction }])
-      historyRef.current = [...historyRef.current, { role: 'assistant', content: aiText }]
+      historyRef.current = [...historyRef.current, { role: 'assistant', content: aiText, action: aiAction }]
 
       setPhase('speaking')
       setStatus('Speaking\u2026')

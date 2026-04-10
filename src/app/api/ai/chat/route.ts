@@ -15,6 +15,46 @@ const LANGUAGE_NAMES: Record<string, string> = {
   ch: 'Chichewa', ts: 'Setswana', en: 'English',
 }
 
+function normalizeCode(value: string | null | undefined) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+}
+
+function extractCodeFromText(value: string | null | undefined) {
+  const text = String(value || '').toUpperCase()
+  const match = text.match(/\b[A-Z]{2}\d{2}\b|\b[A-Z0-9]{4}\b/g)
+  return match?.[match.length - 1] || ''
+}
+
+function cleanDoctorName(value: string | null | undefined) {
+  return String(value || '').replace(/^Dr\.?\s+/i, '').trim()
+}
+
+function pickDoctorFromMessage(message: string, doctors: any[]) {
+  const normalized = message.toLowerCase()
+  const byName = doctors.filter((doctor: any) => {
+    const fullName = String(doctor.name || '').toLowerCase()
+    const bareName = fullName.replace(/^dr\.?\s+/, '')
+    return fullName && (normalized.includes(fullName) || normalized.includes(bareName))
+  })
+  if (byName.length === 1) return { selectedDoctor: byName[0], matches: byName }
+  if (byName.length > 1) return { selectedDoctor: null, matches: byName }
+
+  const byDepartmentOrSpecialty = doctors.filter((doctor: any) => {
+    const department = String(doctor.department || '').toLowerCase()
+    const specialty = String(doctor.specialty || '').toLowerCase()
+    return (department && normalized.includes(department)) || (specialty && normalized.includes(specialty))
+  })
+  if (byDepartmentOrSpecialty.length === 1) return { selectedDoctor: byDepartmentOrSpecialty[0], matches: byDepartmentOrSpecialty }
+  if (byDepartmentOrSpecialty.length > 1) return { selectedDoctor: null, matches: byDepartmentOrSpecialty }
+
+  if (/any|first available|whoever|whichever/.test(normalized)) {
+    const availableDoctor = doctors.find((doctor: any) => doctor.status === 'AVAILABLE')
+    if (availableDoctor) return { selectedDoctor: availableDoctor, matches: [availableDoctor] }
+  }
+
+  return { selectedDoctor: null, matches: [] }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { message, history, language } = await request.json()
@@ -54,6 +94,77 @@ export async function POST(request: NextRequest) {
     const infoText = Object.entries(infoByCategory)
       .map(([cat, items]) => `${cat}:\n  ${items.join('\n  ')}`)
       .join('\n')
+
+    async function loadNormalizedDoctors() {
+      const doctorsRes = await fetch(new URL('/api/doctors', request.url), { cache: 'no-store' })
+      const doctorsData = doctorsRes.ok ? await doctorsRes.json() : []
+      return (Array.isArray(doctorsData) ? doctorsData : [])
+        .map((doctor: any) => {
+          if (!doctor || typeof doctor !== 'object' || doctor.status === 'OFFLINE') return null
+          const departmentSource = Array.isArray(doctor.department) ? doctor.department[0] : doctor.department
+          const userSource = Array.isArray(doctor.user) ? doctor.user[0] : doctor.user
+          return {
+            id: doctor.id,
+            name: cleanDoctorName(userSource?.name ?? 'Unknown'),
+            specialty: doctor.specialty,
+            department: departmentSource?.name ?? 'General',
+            room: doctor.room_number,
+            status: doctor.status,
+          }
+        })
+        .filter(Boolean)
+    }
+
+    async function createAppointmentRecord(details: { doctorId: string; patientName: string; patientPhone?: string | null; symptoms?: string | null }) {
+      const generateShortCode = () => {
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        const dl = () => letters[Math.floor(Math.random() * letters.length)]
+        const n = Math.floor(Math.random() * 90) + 10
+        return `${dl()}${dl()}${n}`
+      }
+
+      let shortCode = ''
+      for (let i = 0; i < 5; i++) {
+        shortCode = generateShortCode()
+        const { count } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('qr_code', shortCode)
+        if (count === 0) break
+      }
+
+      const scheduledAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+      const { data: appointment, error: appointmentError } = await supabase
+        .from('appointments')
+        .insert({
+          patient_name: details.patientName,
+          patient_phone: details.patientPhone || null,
+          symptoms: details.symptoms || null,
+          doctor_id: details.doctorId,
+          scheduled_at: scheduledAt,
+          qr_code: shortCode,
+        })
+        .select('qr_code, status, scheduled_at, doctor:doctors!appointments_doctor_id_fkey(user:users!doctors_user_id_fkey(name))')
+        .single()
+
+      if (appointmentError || !appointment) {
+        return { appointment: null, error: appointmentError?.message || 'Unknown error' }
+      }
+
+      return { appointment, error: null }
+    }
+
+    const conversationHistory = Array.isArray(history) ? history : []
+    const normalizedMessage = String(message).trim().toLowerCase()
+    const compactCode = extractCodeFromText(message)
+    const yesPattern = /^(yes|yeah|yep|correct|confirm|book it|go ahead|okay|ok|sure|please do|that'?s right)\b/i
+    const skipPhonePattern = /^(skip|none|no phone|no number|without phone|n\/a|na|nil|don'?t have one)\b/i
+    const bookingState = [...conversationHistory].reverse().find((entry: any) => entry?.action?.type === 'BOOKING_PROGRESS')?.action || null
+    const previousDoctorsList = [...conversationHistory].reverse().find((entry: any) => entry?.action?.type === 'DOCTORS_LIST')?.action || null
+    const assistantAskedForCode = [...conversationHistory].reverse().some((entry: any) => {
+      const text = String(entry?.content || entry?.text || '').toLowerCase()
+      return entry?.role !== 'user' && (text.includes('tracking code') || text.includes('4-letter code') || text.includes('appointment code'))
+    })
 
     const systemPrompt = `You are AURA, a real hospital receptionist at Mutare Provincial Hospital in Zimbabwe — you answer the phone like a real person, not an AI.
 You sound like a friendly, confident call-centre agent who genuinely cares and also has a good sense of humour. Think: warm, quick, a little cheeky — like the receptionist everyone loves because she actually helps and makes you laugh.
@@ -154,38 +265,125 @@ Rules:
 
     const chatMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },
-      ...((history || []) as any[]).map((h: any) => ({
+      ...conversationHistory.map((h: any) => ({
         role: (h.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: String(h.content || h.text || ''),
       })),
       { role: 'user', content: message.slice(0, 1000) },
     ]
 
-    const normalizedMessage = message.toLowerCase()
+    const wantsBooking = /(book|appointment|see a doctor|doctor appointment)/i.test(normalizedMessage)
+    const wantsTracking = /(track|status|check.*appointment|appointment status|where.*appointment|my appointment|use my code)/i.test(normalizedMessage)
 
-    // Fast-path common kiosk tasks so they still work when the LLM is slow or rate-limited.
-    if (/(book|appointment|see a doctor|doctor appointment)/i.test(normalizedMessage)) {
-      const doctorsRes = await fetch(new URL('/api/doctors', request.url), { cache: 'no-store' })
-      const doctorsData = doctorsRes.ok ? await doctorsRes.json() : []
-      const doctors = (Array.isArray(doctorsData) ? doctorsData : [])
-        .map((doctor: any) => {
-          if (!doctor || typeof doctor !== 'object' || doctor.status === 'OFFLINE') return null
-          const departmentSource = Array.isArray(doctor.department) ? doctor.department[0] : doctor.department
-          const userSource = Array.isArray(doctor.user) ? doctor.user[0] : doctor.user
-          return {
-            id: doctor.id,
-            name: userSource?.name ?? 'Unknown',
-            specialty: doctor.specialty,
-            department: departmentSource?.name ?? 'General',
-            room: doctor.room_number,
-            status: doctor.status,
-          }
+    if ((wantsTracking && compactCode.length !== 4) || (assistantAskedForCode && compactCode.length !== 4 && !bookingState)) {
+      return NextResponse.json({ reply: 'Please tell me your 4-letter appointment code, and I will check it for you.' })
+    }
+
+    if (compactCode.length === 4 && (wantsTracking || assistantAskedForCode)) {
+      const { data } = await supabase
+        .from('appointments')
+        .select(`qr_code, status, scheduled_at, doctor:doctors!appointments_doctor_id_fkey(user:users!doctors_user_id_fkey(name))`)
+        .eq('qr_code', compactCode)
+        .single()
+
+      if (data) {
+        const doctorName = cleanDoctorName((data.doctor as any)?.user?.name ?? 'your doctor')
+        return NextResponse.json({
+          reply: `I found your appointment. The details are shown on the screen below.`,
+          action: { type: 'APPOINTMENT', id: data.qr_code, status: data.status, doctor: doctorName, time: data.scheduled_at },
         })
-        .filter(Boolean)
+      }
+
+      return NextResponse.json({ reply: `I can't find an appointment with code ${compactCode}. Please check the letters and numbers and try again.` })
+    }
+
+    const shouldHandleBooking = wantsBooking || !!bookingState || !!previousDoctorsList
+    if (shouldHandleBooking) {
+      const doctors = await loadNormalizedDoctors()
+
+      if (bookingState?.stage === 'ASK_NAME' && bookingState.doctor) {
+        const patientName = String(message).trim()
+        if (patientName.length < 3) {
+          return NextResponse.json({
+            reply: 'I need your full name please, just as you would like it on the appointment.',
+            action: bookingState,
+          })
+        }
+
+        return NextResponse.json({
+          reply: `Alright ${patientName}. What's your phone number? If you don't want to give one, just say skip.`,
+          action: { ...bookingState, stage: 'ASK_PHONE', patientName },
+        })
+      }
+
+      if (bookingState?.stage === 'ASK_PHONE' && bookingState.doctor && bookingState.patientName) {
+        const patientPhone = skipPhonePattern.test(String(message).trim()) ? '' : String(message).trim()
+        return NextResponse.json({
+          reply: 'Now tell me what you are feeling, or what the appointment is for.',
+          action: { ...bookingState, stage: 'ASK_SYMPTOMS', patientPhone },
+        })
+      }
+
+      if (bookingState?.stage === 'ASK_SYMPTOMS' && bookingState.doctor && bookingState.patientName) {
+        const symptoms = String(message).trim()
+        if (symptoms.length < 3) {
+          return NextResponse.json({
+            reply: 'Give me a quick reason for the visit please, even if it is just one short sentence.',
+            action: bookingState,
+          })
+        }
+
+        return NextResponse.json({
+          reply: `Just to confirm, you want to book with Dr. ${cleanDoctorName(bookingState.doctor.name)}. Your name is ${bookingState.patientName}, phone number is ${bookingState.patientPhone || 'not provided'}, and you said ${symptoms}. Say yes to confirm, or tell me what to change.`,
+          action: { ...bookingState, stage: 'CONFIRM', symptoms },
+        })
+      }
+
+      if (bookingState?.stage === 'CONFIRM' && bookingState.doctor && bookingState.patientName) {
+        if (!yesPattern.test(String(message).trim())) {
+          return NextResponse.json({
+            reply: 'No problem. Tell me the doctor or department you want, and we will update it from there.',
+            action: { type: 'DOCTORS_LIST', doctors },
+          })
+        }
+
+        const { appointment, error } = await createAppointmentRecord({
+          doctorId: bookingState.doctor.id,
+          patientName: bookingState.patientName,
+          patientPhone: bookingState.patientPhone || null,
+          symptoms: bookingState.symptoms || null,
+        })
+
+        if (!appointment) {
+          return NextResponse.json({ reply: `I couldn't complete the booking just now. ${error || 'Please try again.'}` })
+        }
+
+        const doctorName = cleanDoctorName((appointment.doctor as any)?.user?.name ?? bookingState.doctor.name)
+        return NextResponse.json({
+          reply: `Booked. Scan the QR below to track it on your phone, or store this appointment number in your head mate: ${appointment.qr_code}.`,
+          action: { type: 'BOOKING_CONFIRMED', code: appointment.qr_code, doctor: doctorName, time: appointment.scheduled_at },
+        })
+      }
+
+      const doctorSelectionMessage = bookingState?.doctor ? String(message).trim() : normalizedMessage
+      const doctorChoice = pickDoctorFromMessage(doctorSelectionMessage, doctors)
+      if (doctorChoice.selectedDoctor) {
+        return NextResponse.json({
+          reply: `Good choice. Booking with Dr. ${cleanDoctorName(doctorChoice.selectedDoctor.name)}. What's your full name?`,
+          action: { type: 'BOOKING_PROGRESS', stage: 'ASK_NAME', doctor: doctorChoice.selectedDoctor },
+        })
+      }
+
+      if (doctorChoice.matches.length > 1) {
+        return NextResponse.json({
+          reply: 'I found a few doctors that match that. Pick the one you want from the list below.',
+          action: { type: 'DOCTORS_LIST', doctors: doctorChoice.matches },
+        })
+      }
 
       if (doctors.length) {
         return NextResponse.json({
-          reply: "These are the doctors available right now. Tell me which doctor or department you want.",
+          reply: 'These are the doctors available right now. Tell me which doctor or department you want.',
           action: { type: 'DOCTORS_LIST', doctors },
         })
       }
@@ -280,38 +478,19 @@ Rules:
         return { result: `No GPS coordinates found for "${args.location_name}". Provide verbal directions and suggest asking at reception.`, action: null }
       }
       if (name === 'check_appointment') {
-        const { data } = await supabase.from('appointments').select(`qr_code, status, scheduled_at, doctor:doctors!appointments_doctor_id_fkey(user:users!doctors_user_id_fkey(name))`).eq('qr_code', (args.code || '').toUpperCase()).single()
+        const code = normalizeCode(args.code)
+        const { data } = await supabase.from('appointments').select(`qr_code, status, scheduled_at, doctor:doctors!appointments_doctor_id_fkey(user:users!doctors_user_id_fkey(name))`).eq('qr_code', code).single()
         if (data) {
-          const doctorName = (data.doctor as any)?.user?.name ?? 'your doctor'
+          const doctorName = cleanDoctorName((data.doctor as any)?.user?.name ?? 'your doctor')
           return { result: `Appointment found. Code: ${data.qr_code}. Status: ${data.status}. Doctor: Dr. ${doctorName}. Scheduled: ${data.scheduled_at ? new Date(data.scheduled_at).toLocaleString() : 'time not set'}.`, action: { type: 'APPOINTMENT', id: data.qr_code, status: data.status, doctor: doctorName, time: data.scheduled_at } }
         }
-        return { result: `No appointment found with code "${args.code}". Ask them to double-check their 4-character code.`, action: null }
+        return { result: `No appointment found with code "${code}". Ask them to double-check their 4-character code.`, action: null }
       }
       if (name === 'list_doctors') {
-        const doctorsRes = await fetch(new URL('/api/doctors', request.url), { cache: 'no-store' })
-        const docs = doctorsRes.ok ? await doctorsRes.json() : []
-
-        if (!doctorsRes.ok) {
-          return { result: 'Failed to fetch doctors right now. Suggest trying again or asking at reception.', action: null }
-        }
-
+        const docs = await loadNormalizedDoctors()
         const requestedDepartment = String(args.department || '').trim().toLowerCase()
         const requestedSpecialty = String(args.specialty || '').trim().toLowerCase()
-        const normalizedDocs = (docs ?? []).map((doctor: any) => {
-          if (!doctor || typeof doctor !== 'object') return null
-          const departmentSource = Array.isArray(doctor.department) ? doctor.department[0] : doctor.department
-          const userSource = Array.isArray(doctor.user) ? doctor.user[0] : doctor.user
-          return {
-            id: doctor.id,
-            specialty: doctor.specialty,
-            room: doctor.room_number,
-            status: doctor.status,
-            department: departmentSource?.name ?? 'General',
-            name: userSource?.name ?? 'Unknown',
-          }
-        }).filter((doctor: any) => !!doctor && doctor.status !== 'OFFLINE')
-
-        const filtered = normalizedDocs.filter((doctor: any) => {
+        const filtered = docs.filter((doctor: any) => {
           const matchesDepartment = !requestedDepartment
             || String(doctor.department || '').toLowerCase().includes(requestedDepartment)
           const matchesSpecialty = !requestedSpecialty
@@ -325,17 +504,14 @@ Rules:
         return { result: 'No doctors found matching that criteria. Suggest the patient try a different department or check at reception.', action: null }
       }
       if (name === 'book_appointment') {
-        const scheduledAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
-        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        const dl = () => letters[Math.floor(Math.random() * letters.length)]
-        const shortCode = `${dl()}${dl()}${Math.floor(Math.random() * 90) + 10}`
-        const { data: appt, error: apptErr } = await supabase.from('appointments').insert({
-          patient_name: args.patient_name, patient_phone: args.patient_phone || null,
-          symptoms: args.symptoms || null, doctor_id: args.doctor_id,
-          scheduled_at: scheduledAt, qr_code: shortCode,
-        }).select('*, doctor:doctors!appointments_doctor_id_fkey(user:users!doctors_user_id_fkey(name))').single()
+        const { appointment: appt, error: apptErr } = await createAppointmentRecord({
+          doctorId: args.doctor_id,
+          patientName: args.patient_name,
+          patientPhone: args.patient_phone || null,
+          symptoms: args.symptoms || null,
+        })
         if (appt) {
-          const drName = (appt.doctor as any)?.user?.name ?? 'your doctor'
+          const drName = cleanDoctorName((appt.doctor as any)?.user?.name ?? 'your doctor')
           return { result: `Appointment booked! Code: ${appt.qr_code}. Doctor: Dr. ${drName}. Scheduled: ${new Date(appt.scheduled_at).toLocaleString()}. Tell the patient to remember their code ${appt.qr_code} for tracking.`, action: { type: 'BOOKING_CONFIRMED', code: appt.qr_code, doctor: drName, time: appt.scheduled_at } }
         }
         return { result: `Failed to book: ${apptErr?.message || 'Unknown error'}. Suggest trying again or visiting reception.`, action: null }

@@ -33,6 +33,15 @@ interface QueueItem {
   created_at: string
 }
 
+interface Medication {
+  id: string
+  name: string
+  form: string
+  dosage: string
+  category: string | null
+  in_stock: boolean
+}
+
 const STATUS_CONFIG: Record<string, { label: string; dot: string; bg: string }> = {
   AVAILABLE: { label: 'Available', dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' },
   BUSY:      { label: 'Busy',      dot: 'bg-amber-500',  bg: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
@@ -59,18 +68,17 @@ const NOTE_CATEGORIES = [
   { key: 'followup', label: 'Follow-up Instructions' },
 ]
 
-/** Is this appointment effectively "now" — scheduled within ±10 min of current time */
-function isNowAppointment(a: Appointment) {
-  if (!a.scheduled_at) return false
-  const diff = Math.abs(new Date(a.scheduled_at).getTime() - Date.now())
-  return diff < 10 * 60 * 1000
-}
-
-/** Is this appointment in the future queue (not now, not past) */
+/** Is this appointment in the future queue */
 function isFutureAppointment(a: Appointment) {
   if (!a.scheduled_at) return false
   const diff = new Date(a.scheduled_at).getTime() - Date.now()
-  return diff > 10 * 60 * 1000 // more than 10 min from now
+  return diff > 0
+}
+
+function isImminentAppointment(a: Appointment) {
+  if (!a.scheduled_at) return false
+  const diff = new Date(a.scheduled_at).getTime() - Date.now()
+  return diff > 0 && diff <= 5 * 60 * 1000
 }
 
 /** Format ms countdown to "Xh Xm" or "X min" */
@@ -153,22 +161,72 @@ function CountdownBadge({ scheduledAt, onFiveMin, onZero }: {
 ──────────────────────────────────────────────────────────────────── */
 function ActiveAppointmentPanel({
   appointment,
+  medications,
   onEnd,
 }: {
   appointment: Appointment
+  medications: Medication[]
   onEnd: (notes: Record<string, string>) => void
 }) {
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [activeNote, setActiveNote] = useState('diagnosis')
   const [saving, setSaving] = useState(false)
+  const [selectedMeds, setSelectedMeds] = useState<Record<string, { quantity: string }>>({})
+  const [medSearch, setMedSearch] = useState('')
+  const [customMedName, setCustomMedName] = useState('')
+  const [customMedQty, setCustomMedQty] = useState('')
+  const [customMeds, setCustomMeds] = useState<Array<{ name: string; quantity: string }>>([])
+
+  useEffect(() => {
+    setNotes({})
+    setActiveNote('diagnosis')
+    setSelectedMeds({})
+    setMedSearch('')
+    setCustomMedName('')
+    setCustomMedQty('')
+    setCustomMeds([])
+  }, [appointment.id])
+
+  const filteredMeds = medications
+    .filter(m => m.in_stock)
+    .filter(m => {
+      const q = medSearch.trim().toLowerCase()
+      if (!q) return true
+      return [m.name, m.form, m.dosage, m.category || ''].join(' ').toLowerCase().includes(q)
+    })
+    .slice(0, 18)
+
+  const toggleMedication = (med: Medication) => {
+    setSelectedMeds(prev => {
+      if (prev[med.id]) {
+        const next = { ...prev }
+        delete next[med.id]
+        return next
+      }
+      return { ...prev, [med.id]: { quantity: '1' } }
+    })
+  }
 
   const handleEnd = async () => {
     setSaving(true)
+    const prescriptionLines = [
+      ...medications
+        .filter(med => selectedMeds[med.id])
+        .map(med => `- ${med.name} ${med.dosage} (${med.form}) x ${selectedMeds[med.id].quantity || '1'}`),
+      ...customMeds.map(med => `- ${med.name}${med.quantity ? ` x ${med.quantity}` : ''}`),
+    ]
+
+    const prescriptionText = [
+      notes.prescription?.trim(),
+      prescriptionLines.length ? prescriptionLines.join('\n') : '',
+    ].filter(Boolean).join('\n')
+
+    const mergedNotes = { ...notes, prescription: prescriptionText }
     const combined = NOTE_CATEGORIES
-      .filter(c => notes[c.key]?.trim())
-      .map(c => `[${c.label}]\n${notes[c.key].trim()}`)
+      .filter(c => mergedNotes[c.key]?.trim())
+      .map(c => `[${c.label}]\n${mergedNotes[c.key].trim()}`)
       .join('\n\n')
-    await onEnd({ ...notes, combined })
+    await onEnd({ ...mergedNotes, combined })
     setSaving(false)
   }
 
@@ -238,6 +296,79 @@ function ActiveAppointmentPanel({
             rows={5}
             className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none"
           />
+          {activeNote === 'prescription' && (
+            <div className="mt-3 space-y-3">
+              <div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-2">Medication Picker</p>
+                <input
+                  value={medSearch}
+                  onChange={e => setMedSearch(e.target.value)}
+                  placeholder="Search medications..."
+                  className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-xs text-gray-800 dark:text-gray-200"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto pr-1">
+                {filteredMeds.map(med => (
+                  <label key={med.id} className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-[#333] bg-gray-50 dark:bg-[#1a1a1a] px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={!!selectedMeds[med.id]}
+                      onChange={() => toggleMedication(med)}
+                      className="rounded border-gray-300 text-[#003d73] focus:ring-[#003d73]"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{med.name}</p>
+                      <p className="text-[10px] text-gray-400 truncate">{med.dosage} · {med.form}{med.category ? ` · ${med.category}` : ''}</p>
+                    </div>
+                    {selectedMeds[med.id] && (
+                      <input
+                        value={selectedMeds[med.id].quantity}
+                        onChange={e => setSelectedMeds(prev => ({ ...prev, [med.id]: { quantity: e.target.value } }))}
+                        placeholder="Qty"
+                        className="w-16 px-2 py-1 rounded-lg border border-gray-200 dark:border-[#333] bg-white dark:bg-[#111] text-[10px] text-center"
+                      />
+                    )}
+                  </label>
+                ))}
+              </div>
+              <div className="rounded-xl border border-dashed border-gray-300 dark:border-[#333] p-3 space-y-2">
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Add Another Medication</p>
+                <div className="grid grid-cols-[1fr_90px_auto] gap-2">
+                  <input
+                    value={customMedName}
+                    onChange={e => setCustomMedName(e.target.value)}
+                    placeholder="Medication name"
+                    className="px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-xs"
+                  />
+                  <input
+                    value={customMedQty}
+                    onChange={e => setCustomMedQty(e.target.value)}
+                    placeholder="Qty"
+                    className="px-3 py-2 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#333] text-xs"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!customMedName.trim()) return
+                      setCustomMeds(prev => [...prev, { name: customMedName.trim(), quantity: customMedQty.trim() }])
+                      setCustomMedName('')
+                      setCustomMedQty('')
+                    }}
+                    className="px-3 py-2 rounded-xl bg-[#003d73] text-white text-xs font-bold"
+                  >Add</button>
+                </div>
+                {customMeds.length > 0 && (
+                  <div className="space-y-1">
+                    {customMeds.map((med, index) => (
+                      <div key={`${med.name}-${index}`} className="flex items-center justify-between text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-[#111] rounded-lg px-3 py-2 border border-gray-200 dark:border-[#333]">
+                        <span>{med.name}{med.quantity ? ` x ${med.quantity}` : ''}</span>
+                        <button onClick={() => setCustomMeds(prev => prev.filter((_, i) => i !== index))} className="text-red-500 font-bold">×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -266,6 +397,7 @@ export default function DoctorDashboard() {
   const [profile, setProfile] = useState<DoctorProfile | null>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [queue, setQueue] = useState<QueueItem[]>([])
+  const [medications, setMedications] = useState<Medication[]>([])
   const [loading, setLoading] = useState(true)
   const [statusUpdating, setStatusUpdating] = useState(false)
 
@@ -298,16 +430,18 @@ export default function DoctorDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [docRes, apptRes, queueRes, setRes] = await Promise.all([
+      const [docRes, apptRes, queueRes, setRes, medsRes] = await Promise.all([
         fetch('/api/doctors/me'),
         fetch('/api/appointments?mine=true'),
         fetch('/api/queue?mine=true'),
         fetch('/api/settings'),
+        fetch('/api/medications'),
       ])
       if (docRes.ok) setProfile(await docRes.json())
       if (apptRes.ok) setAppointments(await apptRes.json())
       if (queueRes.ok) setQueue(await queueRes.json())
       if (setRes.ok) setSettings(await setRes.json())
+      if (medsRes.ok) setMedications(await medsRes.json())
     } catch {}
     setLoading(false)
   }, [])
@@ -366,7 +500,7 @@ export default function DoctorDashboard() {
           : new Date().toISOString()
         await fetch(`/api/appointments/${selectedAppt.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'ACCEPTED', scheduledAt }),
+          body: JSON.stringify({ status: acceptTime === 'now' ? 'IN_PROGRESS' : 'ACCEPTED', scheduledAt }),
         })
       } else {
         const reason = declineReason + (declineCustom ? ` — ${declineCustom}` : '')
@@ -384,7 +518,7 @@ export default function DoctorDashboard() {
   }
 
   const handleEndAppointment = async (notes: Record<string, string>) => {
-    const active = appointments.find(a => a.status === 'ACCEPTED' && isNowAppointment(a))
+    const active = appointments.find(a => a.status === 'IN_PROGRESS')
     if (!active) return
     await fetch(`/api/appointments/${active.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -393,10 +527,28 @@ export default function DoctorDashboard() {
     loadData()
   }
 
+  const handleQuickEndCurrent = async () => {
+    const active = appointments.find(a => a.status === 'IN_PROGRESS')
+    if (!active) return
+    await fetch(`/api/appointments/${active.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'COMPLETED' }),
+    })
+    loadData()
+  }
+
+  const handleStartUpcoming = async (appt: Appointment) => {
+    await fetch(`/api/appointments/${appt.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'IN_PROGRESS', scheduledAt: new Date().toISOString() }),
+    })
+    loadData()
+  }
+
   const handleAttendConflict = async () => {
     if (!conflictAppt) return
     // End active and start this
-    const currentActive = appointments.find(a => a.status === 'ACCEPTED' && !isFutureAppointment(a))
+    const currentActive = appointments.find(a => a.status === 'IN_PROGRESS')
     if (currentActive) {
       await fetch(`/api/appointments/${currentActive.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -405,7 +557,7 @@ export default function DoctorDashboard() {
     }
     await fetch(`/api/appointments/${conflictAppt.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scheduledAt: new Date().toISOString() }),
+      body: JSON.stringify({ status: 'IN_PROGRESS', scheduledAt: new Date().toISOString() }),
     })
     setConflictAppt(null)
     loadData()
@@ -429,19 +581,36 @@ export default function DoctorDashboard() {
     loadData()
   }
 
+  const pending = appointments.filter(a => a.status === 'PENDING')
+  const activeAppt = appointments.find(a => a.status === 'IN_PROGRESS') || null
+  const queuedAppts = appointments.filter(a => a.status === 'ACCEPTED' && isFutureAppointment(a))
+  const imminentAppt = [...queuedAppts]
+    .filter(isImminentAppointment)
+    .sort((a, b) => new Date(a.scheduled_at || 0).getTime() - new Date(b.scheduled_at || 0).getTime())[0] || null
+  const waitingQueue = queue.filter(q => q.status === 'WAITING')
+  const hasLiveSession = !!activeAppt || queue.some(q => q.status === 'IN_PROGRESS')
+  const effectiveStatus = hasLiveSession ? 'BUSY' : (profile?.status || 'AVAILABLE')
+  const sc = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.OFFLINE
+
+  useEffect(() => {
+    if (!profile) return
+    const targetStatus = hasLiveSession ? 'BUSY' : (profile.status === 'BUSY' ? 'AVAILABLE' : null)
+    if (!targetStatus || targetStatus === profile.status) return
+
+    fetch(`/api/doctors/${profile.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: targetStatus }),
+    }).then(() => {
+      setProfile(prev => prev ? { ...prev, status: targetStatus } : prev)
+    }).catch(() => {})
+  }, [hasLiveSession, profile])
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 rounded-full border-2 border-[#003d73] border-t-transparent animate-spin" />
     </div>
   )
-
-  const pending = appointments.filter(a => a.status === 'PENDING')
-  // Any ACCEPTED appointment not scheduled >10 min in the future is the active one
-  // (avoids the "disappears after 10 min" bug with the old ±10 min isNowAppointment window)
-  const activeAppt = appointments.find(a => a.status === 'ACCEPTED' && !isFutureAppointment(a)) || null
-  const queuedAppts = appointments.filter(a => a.status === 'ACCEPTED' && isFutureAppointment(a))
-  const waitingQueue = queue.filter(q => q.status === 'WAITING')
-  const sc = STATUS_CONFIG[profile?.status || 'AVAILABLE'] || STATUS_CONFIG.OFFLINE
 
   return (
     <div className="space-y-4 h-full">
@@ -506,7 +675,7 @@ export default function DoctorDashboard() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold ${sc.bg}`}>
-              <span className={`w-2 h-2 rounded-full ${sc.dot} ${profile?.status === 'AVAILABLE' ? 'animate-pulse' : ''}`} />
+              <span className={`w-2 h-2 rounded-full ${sc.dot} ${effectiveStatus === 'AVAILABLE' ? 'animate-pulse' : ''}`} />
               {sc.label}
             </div>
             {pending.length > 0 && (
@@ -521,9 +690,9 @@ export default function DoctorDashboard() {
         <div className="mt-3 flex flex-wrap gap-1.5">
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
             <button key={key} onClick={() => updateStatus(key)}
-              disabled={statusUpdating || profile?.status === key}
+              disabled={statusUpdating || effectiveStatus === key}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                profile?.status === key ? cfg.bg
+                effectiveStatus === key ? cfg.bg
                 : 'bg-gray-50 dark:bg-[#1a1a1a] border-gray-200 dark:border-[#333] text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-[#555]'
               } disabled:opacity-60`}>
               <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${cfg.dot}`} />
@@ -533,13 +702,46 @@ export default function DoctorDashboard() {
         </div>
       </div>
 
+      {imminentAppt && (
+        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-1">Upcoming Appointment</p>
+              <p className="text-sm font-black text-gray-900 dark:text-white">{imminentAppt.patient_name}</p>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                {imminentAppt.symptoms || 'No symptoms provided'}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold mt-1">
+                Scheduled for {new Date(imminentAppt.scheduled_at!).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {activeAppt && (
+                <button onClick={handleQuickEndCurrent}
+                  className="px-3 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors">
+                  End Current
+                </button>
+              )}
+              <button onClick={() => setRescheduleAppt(imminentAppt)}
+                className="px-3 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold transition-colors">
+                Reschedule
+              </button>
+              <button onClick={() => handleStartUpcoming(imminentAppt)}
+                className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors">
+                Accept / Start
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-start">
 
         {/* ── LEFT: Active / Current Appointment ── */}
         <div>
           {activeAppt ? (
-            <ActiveAppointmentPanel appointment={activeAppt} onEnd={handleEndAppointment} />
+            <ActiveAppointmentPanel appointment={activeAppt} medications={medications} onEnd={handleEndAppointment} />
           ) : (
             <div className="bg-white dark:bg-[#111] rounded-2xl border border-gray-200 dark:border-[#222] p-6">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Current Activity</p>

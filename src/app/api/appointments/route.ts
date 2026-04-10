@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       if (doctor) query = query.eq('doctor_id', doctor.id)
     }
     // Always show PENDING regardless of date; filter out old declined/completed
-    query = query.or('status.eq.PENDING,status.eq.ACCEPTED,status.eq.COMPLETED')
+    query = query.or('status.eq.PENDING,status.eq.ACCEPTED,status.eq.IN_PROGRESS,status.eq.COMPLETED')
   }
 
   const { data: appointments, error } = await query

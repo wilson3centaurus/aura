@@ -3,6 +3,42 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
 
+function TrackingQRCode({ code }: { code: string }) {
+  const [qrUrl, setQrUrl] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    fetch('/api/host')
+      .then(res => res.json())
+      .then(async ({ origin }) => {
+        const base = origin || (typeof window !== 'undefined' ? window.location.origin : '')
+        const trackUrl = `${base}/kiosk/track?qr=${code}`
+        const mod = await import('qrcode')
+        const QRCode = (mod as any).default ?? mod
+        const dataUrl = await QRCode.toDataURL(trackUrl, {
+          width: 180,
+          margin: 1,
+          color: { dark: '#003d73', light: '#ffffff' },
+        })
+        if (active) setQrUrl(dataUrl)
+      })
+      .catch(() => {})
+
+    return () => { active = false }
+  }, [code])
+
+  if (!qrUrl) {
+    return (
+      <div className="w-[180px] h-[180px] rounded-2xl bg-white dark:bg-[#111] border border-gray-200 dark:border-[#222] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-[#003d73] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  return <img src={qrUrl} alt="Tracking QR Code" className="w-[180px] h-[180px] rounded-2xl bg-white p-2 border border-gray-200 dark:border-[#222] shadow-sm" />
+}
+
 interface Appointment {
   id: string
   patient_name: string
@@ -52,10 +88,15 @@ function buildMapsUrl(lat: number, lng: number) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`
 }
 
+function normalizeTrackingCode(value: string | null | undefined) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+}
+
 function TrackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const qr = searchParams.get('qr')
+  const normalizedQr = normalizeTrackingCode(qr)
 
   const [appointment, setAppointment] = useState<Appointment | null>(null)
   const [loading, setLoading] = useState(true)
@@ -63,22 +104,32 @@ function TrackContent() {
   const [refreshing, setRefreshing] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
+  const [codeInput, setCodeInput] = useState(normalizedQr)
+
+  useEffect(() => {
+    setCodeInput(normalizedQr)
+    if (qr && normalizedQr && qr !== normalizedQr) {
+      router.replace(`/kiosk/track?qr=${normalizedQr}`)
+    }
+  }, [normalizedQr, qr, router])
 
   const fetchStatus = async (silent = false) => {
-    if (!qr) return
+    if (!normalizedQr) return
     if (!silent) setLoading(true)
     else setRefreshing(true)
     try {
-      const res = await fetch(`/api/appointments/track?qr=${encodeURIComponent(qr)}`)
+      const res = await fetch(`/api/appointments/track?qr=${encodeURIComponent(normalizedQr)}`)
       const data = await res.json()
       if (res.ok) {
         setAppointment(data)
         setLastRefreshed(new Date())
         setError(null)
       } else {
+        setAppointment(null)
         setError(data.error || 'Appointment not found')
       }
     } catch {
+      setAppointment(null)
       setError('Unable to connect. Please check your connection.')
     }
     setLoading(false)
@@ -89,7 +140,13 @@ function TrackContent() {
     fetchStatus()
     const interval = setInterval(() => fetchStatus(true), 5000)
     return () => clearInterval(interval)
-  }, [qr])
+  }, [normalizedQr])
+
+  const submitCode = () => {
+    const code = normalizeTrackingCode(codeInput)
+    if (!code) return
+    router.push(`/kiosk/track?qr=${code}`)
+  }
 
   const handleCancel = async () => {
     if (!appointment || !confirm('Are you sure you want to cancel this appointment?')) return
@@ -107,12 +164,25 @@ function TrackContent() {
     setCancelling(false)
   }
 
-  if (!qr) {
+  if (!normalizedQr) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 bg-white dark:bg-[#0a0a0a]">
         <span className="text-5xl mb-4">🔍</span>
         <h2 className="text-lg font-black text-gray-900 dark:text-white mb-2">No QR Code Provided</h2>
         <p className="text-sm text-gray-500 text-center mb-6">Please scan your QR ticket or enter the tracking code manually.</p>
+        <div className="w-full max-w-xs space-y-3 mb-6">
+          <input
+            value={codeInput}
+            onChange={e => setCodeInput(normalizeTrackingCode(e.target.value))}
+            placeholder="AB12"
+            maxLength={4}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#222] bg-white dark:bg-[#111] text-center font-black tracking-[0.35em] text-lg text-gray-900 dark:text-white uppercase"
+          />
+          <button onClick={submitCode} className="w-full px-6 py-3 rounded-xl bg-[#003d73] text-white font-bold text-sm">Track Appointment</button>
+        </div>
         <button onClick={() => router.push('/kiosk/menu')}
           className="px-6 py-3 rounded-xl bg-[#003d73] text-white font-bold text-sm">
           Back to Menu
@@ -136,6 +206,19 @@ function TrackContent() {
         <span className="text-5xl mb-4">❓</span>
         <h2 className="text-lg font-black text-gray-900 dark:text-white mb-2">Appointment Not Found</h2>
         <p className="text-sm text-gray-500 text-center mb-6">{error || 'The QR code may be invalid or expired.'}</p>
+        <div className="w-full max-w-xs space-y-3 mb-4">
+          <input
+            value={codeInput}
+            onChange={e => setCodeInput(normalizeTrackingCode(e.target.value))}
+            placeholder="AB12"
+            maxLength={4}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-[#222] bg-white dark:bg-[#111] text-center font-black tracking-[0.35em] text-lg text-gray-900 dark:text-white uppercase"
+          />
+          <button onClick={submitCode} className="w-full px-5 py-2.5 rounded-xl bg-[#003d73] text-white font-bold text-sm">Track with This Code</button>
+        </div>
         <div className="flex gap-3">
           <button onClick={() => fetchStatus()} className="px-5 py-2.5 rounded-xl bg-[#003d73] text-white font-bold text-sm">
             Retry
@@ -193,7 +276,7 @@ function TrackContent() {
         <div className="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
           <div>
             <p className="text-white/50 text-[9px] uppercase tracking-widest font-bold">Your Tracking Code</p>
-            <p className="text-white font-black text-3xl tracking-[0.25em] leading-tight">{qr?.toUpperCase()}</p>
+            <p className="text-white font-black text-3xl tracking-[0.25em] leading-tight">{normalizedQr}</p>
             <p className="text-white/40 text-[9px] mt-0.5">Keep this code — you can use it to check status anytime</p>
           </div>
           <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-2xl">🎫</div>
@@ -201,12 +284,20 @@ function TrackContent() {
 
         {lastRefreshed && (
           <p className="text-white/40 text-[9px] mt-2">
-            Updated {lastRefreshed.toLocaleTimeString()} · Auto-refreshes every 15s
+            Updated {lastRefreshed.toLocaleTimeString()} · Auto-refreshes every 5s
           </p>
         )}
       </header>
 
       <main className="flex-1 p-5 space-y-4 max-w-lg mx-auto w-full overflow-y-auto">
+        <div className="rounded-2xl border border-gray-200 dark:border-[#222] bg-white dark:bg-[#111] p-4 flex flex-col items-center text-center gap-3">
+          <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Track On Your Phone</p>
+          <TrackingQRCode code={normalizedQr} />
+          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs">
+            Scan this QR code with your phone to open this same appointment tracker there.
+          </p>
+        </div>
+
         {/* Status Banner */}
         <div className={`rounded-2xl border p-4 flex items-start gap-3 ${ui.bg}`}>
           <span className="text-2xl mt-0.5">{ui.icon}</span>

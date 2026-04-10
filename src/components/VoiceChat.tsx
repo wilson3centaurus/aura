@@ -88,20 +88,45 @@ function DoctorsListCard({ action }: { action: any }) {
 }
 
 function BookingConfirmedCard({ action }: { action: any }) {
+  const [qrUrl, setQrUrl] = useState('')
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/host')
+      .then(res => res.json())
+      .then(async ({ origin }) => {
+        const base = origin || (typeof window !== 'undefined' ? window.location.origin : '')
+        const trackUrl = `${base}/kiosk/track?qr=${action.code}`
+        const mod = await import('qrcode')
+        const QR = (mod as any).default ?? mod
+        const dataUrl = await QR.toDataURL(trackUrl, { width: 140, margin: 1, color: { dark: '#003d73', light: '#ffffff' } })
+        if (active) setQrUrl(dataUrl)
+      })
+      .catch(() => {})
+
+    return () => { active = false }
+  }, [action.code])
+
   return (
     <div className="mt-2 rounded-2xl overflow-hidden border border-white/15 bg-white/5 max-w-[85%]">
       <div className="bg-emerald-600/30 px-4 py-2 flex items-center gap-2">
         <span className="text-lg">✅</span>
         <span className="text-white font-bold text-sm">Booking Confirmed!</span>
       </div>
-      <div className="p-3 space-y-1.5 text-xs text-white/70">
-        <div className="flex items-center gap-2">
+      <div className="p-3 space-y-2 text-xs text-white/70">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-white/40">Your Code:</span>
           <span className="font-black text-xl text-emerald-400 tracking-widest">{action.code}</span>
         </div>
         <p><span className="text-white/40">Doctor:</span> Dr. {action.doctor}</p>
         {action.time && <p><span className="text-white/40">Scheduled:</span> {new Date(action.time).toLocaleString()}</p>}
-        <p className="text-[10px] text-white/40 pt-1">Remember this code to track your appointment</p>
+        {qrUrl && (
+          <div className="pt-1 flex flex-col items-start gap-1">
+            <img src={qrUrl} alt="Track appointment QR" className="w-24 h-24 rounded-lg bg-white p-1" />
+            <p className="text-[10px] text-white/40">Scan the QR to track on your phone</p>
+          </div>
+        )}
+        <p className="text-[10px] text-white/40">Store this appointment number in your head mate if you prefer</p>
       </div>
     </div>
   )

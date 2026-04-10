@@ -35,7 +35,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   if (status) updates.status = status
 
-  if (status === 'ACCEPTED') {
+  if (status === 'ACCEPTED' || status === 'IN_PROGRESS') {
     updates.accepted_at = new Date().toISOString()
     updates.scheduled_at = scheduledAt
       ? new Date(scheduledAt).toISOString()
@@ -52,7 +52,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   if (status === 'COMPLETED') {
-    updates.completed_at = new Date().toISOString()
     if (notes) updates.notes = notes
   }
 
@@ -74,29 +73,32 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (status && data?.doctor_id) {
     const doctorId = data.doctor_id
 
-    if (status === 'ACCEPTED') {
-      // Check if scheduled_at is roughly "now" (within 10 minutes)
+    if (status === 'ACCEPTED' || status === 'IN_PROGRESS') {
       const scheduledMs = updates.scheduled_at ? new Date(updates.scheduled_at as string).getTime() : Date.now()
-      const diffMin = Math.abs(scheduledMs - Date.now()) / 60000
+      const isCurrentSession = status === 'IN_PROGRESS' || scheduledMs <= Date.now()
 
-      if (diffMin <= 10) {
-        // Doctor accepted an immediate appointment → set BUSY
+      if (isCurrentSession) {
         await supabase
           .from('doctors')
           .update({ status: 'BUSY' })
           .eq('id', doctorId)
       }
     } else if (status === 'COMPLETED' || status === 'DECLINED' || status === 'CANCELLED') {
-      // Check if doctor still has other ACCEPTED appointments
+      // Check if doctor still has other live appointments
       const { data: otherActive } = await supabase
         .from('appointments')
-        .select('id')
+          .select('id, scheduled_at, status')
         .eq('doctor_id', doctorId)
-        .eq('status', 'ACCEPTED')
         .neq('id', params.id)
 
-      if (!otherActive || otherActive.length === 0) {
-        // No other active appointments → restore AVAILABLE (only if currently BUSY)
+      const stillBusy = (otherActive || []).some(appt => {
+        if (appt.status === 'IN_PROGRESS') return true
+        if (appt.status !== 'ACCEPTED') return false
+        if (!appt.scheduled_at) return false
+        return new Date(appt.scheduled_at).getTime() <= Date.now()
+      })
+
+      if (!stillBusy) {
         await supabase
           .from('doctors')
           .update({ status: 'AVAILABLE' })
