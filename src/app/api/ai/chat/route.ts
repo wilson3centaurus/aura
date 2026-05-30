@@ -197,13 +197,15 @@ Mutare Provincial Hospital was established in 1902 during the colonial era and w
 
 Rules:
 1. Bookings: When a patient wants to book, call list_doctors first (filtered by department/specialty if they mentioned one). Present the doctors naturally by name and specialty, then ask which one they'd like. Once they choose, ask for their full name, then call book_appointment. Give them their code and tell them to remember it.
-2. Directions: Also call show_map AND give a verbal turn-by-turn hint in your reply.
+2. Directions: Also call show_map AND give a verbal turn-by-turn hint in your reply. After giving directions, briefly check whether they understood or whether they want spoken step-by-step guidance as well.
 3. Appointment tracking: ask for their 4-letter code (like AB12), then call check_appointment.
 4. Fees: ALWAYS quote the exact price from the fee schedule above. Never say you don't have access to fee information.
 5. History/facts: Use the historical facts above to answer questions about when the hospital was built, who founded it, etc.
 6. If asked something you genuinely don't know (not in the data above), call search_web to look it up — don't make things up.
 7. NEVER output raw function call tags like <function=...> in your reply text. Use the proper tool mechanism — never type function syntax in your response.
-8. When listing doctors, mention their name, specialty, and department conversationally — never dump raw IDs or JSON.`
+8. When listing doctors, mention their name, specialty, and department conversationally — never dump raw IDs or JSON.
+9. If the patient asks about bathrooms, toilets, restrooms, or washrooms, treat those as the same destination.
+10. If the patient wants a booking, guide them like a human receptionist: ask what they are feeling, suggest suitable doctors, then ask them to confirm their choice clearly.`
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -413,7 +415,7 @@ Rules:
 
       if (matchedPin?.latitude != null && matchedPin?.longitude != null) {
         return NextResponse.json({
-          reply: `${matchedPin.name} is shown on the screen below with directions.`,
+          reply: `${matchedPin.name} is shown on the screen below with directions and a QR code. If you want, I can also talk you through the route step by step.`,
           action: { type: 'MAP', name: matchedPin.name, lat: matchedPin.latitude, lng: matchedPin.longitude },
         })
       }

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openAiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY
+const openai = new OpenAI({ apiKey: openAiKey })
 
 // ElevenLabs — Rachel voice (calm, professional, multilingual)
+// eleven_turbo_v2_5: ~400ms latency, multilingual, ideal for real-time kiosk voice
 const EL_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'
-const EL_MODEL    = 'eleven_multilingual_v2'
+const EL_MODEL    = 'eleven_turbo_v2_5'
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,6 +51,10 @@ export async function POST(request: NextRequest) {
     }
 
     // — Fallback: OpenAI TTS —
+    if (!openAiKey) {
+      return NextResponse.json({ error: 'No OpenAI TTS key configured' }, { status: 500 })
+    }
+
     const mp3 = await openai.audio.speech.create({
       model: 'tts-1',
       voice: voice as 'nova' | 'alloy' | 'echo' | 'fable' | 'onyx' | 'shimmer',

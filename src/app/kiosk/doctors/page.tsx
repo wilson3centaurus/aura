@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useBatchTranslation } from '@/components/useBatchTranslation'
+import { useKioskLanguage } from '@/components/useKioskLanguage'
 
 interface Doctor {
   id: string
@@ -45,6 +47,7 @@ function QRCodeDisplay({ value, size = 160 }: { value: string; size?: number }) 
 
 export default function KioskDoctors() {
   const router = useRouter()
+  const { language } = useKioskLanguage()
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -54,10 +57,39 @@ export default function KioskDoctors() {
   const [bookingDoctor, setBookingDoctor] = useState<Doctor | null>(null)
   const [bookingStep, setBookingStep] = useState<'form' | 'qr'>('form')
   const [bookingForm, setBookingForm] = useState({ name: '', phone: '', symptoms: '' })
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; symptoms?: string }>({})
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([])
   const [booking, setBooking] = useState(false)
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null)
   const [qrBaseUrl, setQrBaseUrl] = useState('')
+
+  const translatedLabels = useBatchTranslation([
+    'Select a Doctor',
+    'Book an Appointment',
+    'Search by name, specialty, or department...',
+    'All Departments',
+    'Book Appointment',
+    'Your Details',
+    'Full Name',
+    'Enter your full name',
+    'Phone Number',
+    'optional',
+    'Symptoms / Reason for Visit',
+    'Add more details if needed...',
+    'Validation Checklist',
+    'Patient name is required.',
+    'Phone number format looks invalid.',
+    'Symptoms or reason for visit are required.',
+    'Book Appointment and Get QR Ticket',
+    'Cancel',
+    'Available now',
+    'No doctors found',
+    'Try adjusting your search or department filter.',
+    'Book',
+    'Request',
+  ], language)
+
+  const [selectDoctorLabel, bookAppointmentLabel, searchPlaceholderLabel, allDepartmentsLabel, modalEyebrowLabel, yourDetailsLabel, fullNameLabel, fullNamePlaceholderLabel, phoneNumberLabel, optionalLabel, symptomsLabel, symptomsPlaceholderLabel, validationChecklistLabel, nameRequiredLabel, phoneInvalidLabel, symptomsRequiredLabel, submitBookingLabel, cancelLabel, availableNowLabel, noDoctorsFoundLabel, noDoctorsHintLabel, bookLabel, requestLabel] = translatedLabels
 
   const SYMPTOM_CHIPS = [
     'Fever', 'Headache', 'Cough', 'Chest Pain', 'Abdominal Pain',
@@ -84,17 +116,28 @@ export default function KioskDoctors() {
   }, [])
 
   const submitBooking = async () => {
-    if (!bookingDoctor || !bookingForm.name.trim()) return
+    if (!bookingDoctor) return
+
+    const nextErrors: { name?: string; phone?: string; symptoms?: string } = {}
+    const trimmedName = bookingForm.name.trim()
     const symptoms = buildSymptomsText()
-    if (!symptoms) return
+    const trimmedPhone = bookingForm.phone.trim()
+
+    if (trimmedName.length < 3) nextErrors.name = nameRequiredLabel
+    if (trimmedPhone && !/^\+?[0-9\s-]{9,15}$/.test(trimmedPhone)) nextErrors.phone = phoneInvalidLabel
+    if (!symptoms) nextErrors.symptoms = symptomsRequiredLabel
+
+    setFieldErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setBooking(true)
     try {
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientName: bookingForm.name,
-          patientPhone: bookingForm.phone || null,
+          patientName: trimmedName,
+          patientPhone: trimmedPhone || null,
           symptoms,
           doctorId: bookingDoctor.id,
           scheduledAt: new Date().toISOString(),
@@ -105,7 +148,7 @@ export default function KioskDoctors() {
         setBookingResult({
           appointmentId: data.id,
           qrCode: data.qr_code,
-          patientName: bookingForm.name,
+          patientName: trimmedName,
           doctorName: bookingDoctor.user.name,
           scheduledAt: data.scheduled_at,
           status: data.status,
@@ -213,7 +256,7 @@ export default function KioskDoctors() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div className="flex-1">
-            <p className="text-white/60 text-[10px] uppercase tracking-widest">Book Appointment</p>
+            <p className="text-white/60 text-[10px] uppercase tracking-widest">{modalEyebrowLabel}</p>
             <h1 className="text-white font-black text-base">{bookingDoctor.user.name}</h1>
           </div>
         </header>
@@ -238,31 +281,39 @@ export default function KioskDoctors() {
               </span>
             </div>
 
-            <h2 className="text-base font-black text-gray-900 dark:text-white mb-4">Your Details</h2>
+            <h2 className="text-base font-black text-gray-900 dark:text-white mb-4">{yourDetailsLabel}</h2>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Full Name *</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">{fullNameLabel} *</label>
                 <input
                   type="text"
                   value={bookingForm.name}
-                  onChange={e => setBookingForm({ ...bookingForm, name: e.target.value })}
-                  placeholder="Enter your full name"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73]"
+                  onChange={e => {
+                    setBookingForm({ ...bookingForm, name: e.target.value })
+                    setFieldErrors(prev => ({ ...prev, name: undefined }))
+                  }}
+                  placeholder={fullNamePlaceholderLabel}
+                  className={`w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] ${fieldErrors.name ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-[#222]'}`}
                 />
+                {fieldErrors.name && <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">{fieldErrors.name}</p>}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Phone Number <span className="font-normal normal-case text-gray-400">(optional)</span></label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">{phoneNumberLabel} <span className="font-normal normal-case text-gray-400">({optionalLabel})</span></label>
                 <input
                   type="tel"
                   value={bookingForm.phone}
-                  onChange={e => setBookingForm({ ...bookingForm, phone: e.target.value })}
+                  onChange={e => {
+                    setBookingForm({ ...bookingForm, phone: e.target.value })
+                    setFieldErrors(prev => ({ ...prev, phone: undefined }))
+                  }}
                   placeholder="+263 7XX XXX XXX"
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73]"
+                  className={`w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] ${fieldErrors.phone ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-[#222]'}`}
                 />
+                {fieldErrors.phone && <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">{fieldErrors.phone}</p>}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">Symptoms / Reason for Visit *</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">{symptomsLabel} *</label>
                 {/* Symptom chips */}
                 <div className="flex flex-wrap gap-2 mb-3">
                   {SYMPTOM_CHIPS.map(s => (
@@ -281,11 +332,24 @@ export default function KioskDoctors() {
                 </div>
                 <textarea
                   value={bookingForm.symptoms}
-                  onChange={e => setBookingForm({ ...bookingForm, symptoms: e.target.value })}
-                  placeholder="Add more details (optional)..."
+                  onChange={e => {
+                    setBookingForm({ ...bookingForm, symptoms: e.target.value })
+                    setFieldErrors(prev => ({ ...prev, symptoms: undefined }))
+                  }}
+                  placeholder={symptomsPlaceholderLabel}
                   rows={2}
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border border-gray-200 dark:border-[#222] text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none"
+                  className={`w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] resize-none ${fieldErrors.symptoms ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-[#222]'}`}
                 /></div>
+                {fieldErrors.symptoms && <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">{fieldErrors.symptoms}</p>}
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/30 dark:bg-blue-950/20">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-700 dark:text-blue-300">{validationChecklistLabel}</p>
+              <div className="mt-3 space-y-2 text-sm text-blue-900 dark:text-blue-100">
+                <p className="flex items-center justify-between gap-3"><span>{fullNameLabel}</span><span className="font-bold">{bookingForm.name.trim().length >= 3 ? 'OK' : 'Required'}</span></p>
+                <p className="flex items-center justify-between gap-3"><span>{phoneNumberLabel}</span><span className="font-bold">{!bookingForm.phone.trim() || /^\+?[0-9\s-]{9,15}$/.test(bookingForm.phone.trim()) ? 'OK' : 'Check'}</span></p>
+                <p className="flex items-center justify-between gap-3"><span>{symptomsLabel}</span><span className="font-bold">{buildSymptomsText() ? 'OK' : 'Required'}</span></p>
+              </div>
             </div>
 
             <div className="mt-5 space-y-2.5">
@@ -299,13 +363,13 @@ export default function KioskDoctors() {
                     <span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                     Booking...
                   </span>
-                ) : 'Book Appointment & Get QR Ticket'}
+                ) : submitBookingLabel}
               </button>
               <button
                 onClick={() => setBookingDoctor(null)}
                 className="w-full py-3 rounded-2xl border border-gray-200 dark:border-[#222] text-gray-600 dark:text-gray-400 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-[#111] transition-colors"
               >
-                Cancel
+                {cancelLabel}
               </button>
             </div>
           </div>
@@ -323,11 +387,11 @@ export default function KioskDoctors() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div className="flex-1">
-            <p className="text-white/60 text-[10px] uppercase tracking-widest">Select a Doctor</p>
-            <h1 className="text-white font-black text-base">Book an Appointment</h1>
+            <p className="text-white/60 text-[10px] uppercase tracking-widest">{selectDoctorLabel}</p>
+            <h1 className="text-white font-black text-base">{bookAppointmentLabel}</h1>
           </div>
           <span className="text-[10px] px-2.5 py-1.5 rounded-xl bg-emerald-500 text-white font-bold">
-            {available.length} available
+            {available.length} {availableNowLabel}
           </span>
         </div>
 
@@ -338,7 +402,7 @@ export default function KioskDoctors() {
           </svg>
           <input
             type="text"
-            placeholder="Search by name, specialty or department..."
+            placeholder={searchPlaceholderLabel}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/15 text-white text-sm placeholder-white/40 focus:outline-none focus:bg-white/20 transition-colors border border-white/20"
@@ -356,7 +420,7 @@ export default function KioskDoctors() {
               : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-[#222]'
           }`}
         >
-          All Departments
+          {allDepartmentsLabel}
         </button>
         {departments.map(dept => (
           <button
@@ -381,8 +445,8 @@ export default function KioskDoctors() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
             <span className="text-5xl mb-3">👨‍⚕️</span>
-            <p className="text-base font-semibold">No doctors found</p>
-            <p className="text-sm mt-1">Try adjusting your search or filter</p>
+            <p className="text-base font-semibold">{noDoctorsFoundLabel}</p>
+            <p className="text-sm mt-1">{noDoctorsHintLabel}</p>
           </div>
         ) : (
           <div className="space-y-3 max-w-2xl mx-auto">
@@ -411,7 +475,7 @@ export default function KioskDoctors() {
                     onClick={() => setBookingDoctor(doctor)}
                     className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-black transition-all bg-[#003d73] hover:bg-[#002d57] text-white shadow-md shadow-blue-900/20 active:scale-95"
                   >
-                    {doctor.status === 'AVAILABLE' ? 'Book' : 'Request'}
+                    {doctor.status === 'AVAILABLE' ? bookLabel : requestLabel}
                   </button>
                 </div>
               )

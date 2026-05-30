@@ -1,6 +1,7 @@
-﻿'use client'
+'use client'
 /**
  * useVoicePipeline — VAD → Whisper STT → Groq LLM → ElevenLabs TTS (+ browser speech fallback)
+ * Exposes analyserRef so VoiceChat can drive a live waveform via requestAnimationFrame.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react'
@@ -15,7 +16,32 @@ export interface VoiceMessage {
 }
 
 const RMS_THRESHOLD = 0.012
-const SILENCE_MS    = 800
+// 600 ms silence → faster turn-taking
+const SILENCE_MS = 600
+
+// Native-language greetings for all 16 supported languages
+const GREETINGS: Record<string, string> = {
+  en: 'Mutare Provincial Hospital, this is AURA speaking. How can I help you today?',
+  sn: 'Mauya paMutare Provincial Hospital. Ndiri AURA. Ndingakubatsirai sei nhasi?',
+  nd: 'Siyakwamukela eMutare Provincial Hospital. Ngingu AURA. Ngingakusiza njani lamuhla?',
+  xh: 'Wamkelekile eMutare Provincial Hospital. NdinguAURA. Ndingakunceda njani namhlanje?',
+  st: 'O amohetswe Mutare Provincial Hospital. Ke AURA. Ke ka thusa joang kajeno?',
+  ve: 'Ni khou ambiwa Mutare Provincial Hospital. Ndi AURA. Ndi nga ni thusa hani namusi?',
+  ts: 'O amogetswe Mutare Provincial Hospital. Ke AURA. Ke ka go thusa jang gompieno?',
+  ch: 'Mukutilandira Mutare Provincial Hospital. Ndine AURA. Ndingakuthandize bwanji lero?',
+  to: 'Mwabukeni ku Mutare Provincial Hospital. Ndine AURA. Ndingatuliziyi bwanji lelo?',
+  cb: 'Mauya kuMutare Provincial Hospital. Ndini AURA. Ndingabatsira sei nhasi?',
+  kl: 'Dumela Mutare Provincial Hospital. Ke AURA. Ke ka thusa jang gompieno?',
+  ko: 'Welcome to Mutare Provincial Hospital. I am AURA. How can I assist you today?',
+  nm: 'Mauya ku Mutare Provincial Hospital. Ndine AURA. Ndingatuliziyi bwanji lelo?',
+  na: 'Mauya ku Mutare Provincial Hospital. Ndini AURA. Ndingabatsira sei nhasi?',
+  sh: 'Mauya ku Mutare Provincial Hospital. Ndini AURA. Ndingabatsira sei nhasi?',
+  sl: 'Welcome to Mutare Provincial Hospital. I am AURA. How can I help you today?',
+}
+
+function getGreeting(language: string) {
+  return GREETINGS[language] || GREETINGS.en
+}
 
 export function useVoicePipeline({ language = 'en' }: { language?: string } = {}) {
   const [phase,    setPhase]    = useState<VoicePhase>('idle')
@@ -26,6 +52,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
   const activeRef   = useRef(false)
   const streamRef   = useRef<MediaStream | null>(null)
   const ctxRef      = useRef<AudioContext | null>(null)
+  // Exposed so VoiceChat can drive a live waveform without triggering re-renders
   const analyserRef = useRef<AnalyserNode | null>(null)
   const historyRef  = useRef<{ role: string; content: string; action?: any }[]>([])
   const langRef     = useRef(language)
@@ -37,7 +64,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
     ctxRef.current?.close().catch(() => {})
-    ctxRef.current  = null
+    ctxRef.current    = null
     analyserRef.current = null
     setPhase('idle')
     setStatus('')
@@ -48,7 +75,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
     setError('')
     setMessages([])
     historyRef.current = []
-    setStatus('Requesting microphone\u2026')
+    setStatus('Requesting microphone…')
 
     if (!navigator.mediaDevices?.getUserMedia) {
       const onPhone = typeof window !== 'undefined' &&
@@ -93,7 +120,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
         const ttsRes = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, language: langRef.current }),
         })
         if (ttsRes.ok) {
           const url = URL.createObjectURL(await ttsRes.blob())
@@ -108,14 +135,13 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       } catch (e) {
         console.warn('[TTS] failed, using browser speech:', e)
       }
-      // Browser Web Speech API fallback (always free, no quota)
       return new Promise<void>(resolve => {
         if (!('speechSynthesis' in window)) { resolve(); return }
         window.speechSynthesis.cancel()
         const utter = new SpeechSynthesisUtterance(text)
-        utter.rate = 1.05
+        utter.rate  = 1.05
         utter.pitch = 1.0
-        utter.onend = () => resolve()
+        utter.onend   = () => resolve()
         utter.onerror = () => resolve()
         window.speechSynthesis.speak(utter)
       })
@@ -124,7 +150,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
     function listen() {
       if (!activeRef.current) return
 
-      const chunks: Blob[] = []
+      const chunks: Blob[]   = []
       let hasSpeech   = false
       let speechDurMs = 0
       let speechStart = 0
@@ -136,7 +162,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       mr.start(100)
 
       setPhase('listening')
-      setStatus('Listening\u2026 speak naturally')
+      setStatus('Listening… speak naturally')
 
       const buf = new Float32Array(analyser.fftSize)
 
@@ -175,7 +201,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       }
 
       setPhase('processing')
-      setStatus('Transcribing\u2026')
+      setStatus('Transcribing…')
 
       let transcript = ''
       try {
@@ -196,7 +222,7 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       }
 
       if (!transcript || transcript.length < 2) {
-        setStatus('(Nothing heard, listening again\u2026)')
+        setStatus('(Nothing heard, listening again…)')
         if (activeRef.current) listen()
         return
       }
@@ -204,22 +230,22 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', text: transcript }])
       historyRef.current = [...historyRef.current, { role: 'user', content: transcript }]
 
-      setStatus('Thinking\u2026')
-      let aiText = "I'm sorry, I had trouble responding. Please try again."
+      setStatus('Thinking…')
+      let aiText   = "I'm sorry, I had trouble responding. Please try again."
       let aiAction: any = null
       try {
         const chatRes = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: transcript,
-            history: historyRef.current.slice(0, -1),
+            message:  transcript,
+            history:  historyRef.current.slice(0, -1),
             language: langRef.current,
           }),
         })
         if (chatRes.ok) {
           const data = await chatRes.json()
-          aiText = data.reply || aiText
+          aiText   = data.reply  || aiText
           aiAction = data.action || null
           console.log('[AI] reply:', aiText, 'action:', aiAction)
         } else {
@@ -233,16 +259,16 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       historyRef.current = [...historyRef.current, { role: 'assistant', content: aiText, action: aiAction }]
 
       setPhase('speaking')
-      setStatus('Speaking\u2026')
+      setStatus('Speaking…')
       await speakText(aiText)
 
       if (activeRef.current) listen()
     }
 
     setPhase('processing')
-    setStatus('Connecting\u2026')
+    setStatus('Connecting…')
 
-    const greeting = "Mutare Provincial Hospital, this is AURA speaking — how can I help you today?"
+    const greeting = getGreeting(langRef.current)
     setMessages([{ id: 'ai-0', role: 'ai', text: greeting }])
     historyRef.current = [{ role: 'assistant', content: greeting }]
 
@@ -251,5 +277,5 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
     if (activeRef.current) listen()
   }, [stop])
 
-  return { phase, messages, error, status, start, stop }
+  return { phase, messages, error, status, start, stop, analyserRef }
 }

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import DirectionsModal from '@/components/DirectionsModal'
 import { FaChevronLeft, FaLocationDot, FaMapLocationDot } from 'react-icons/fa6'
 import {
@@ -9,6 +9,8 @@ import {
   MdLocalCafe, MdLocalAtm, MdLocalParking, MdExitToApp,
   MdWc, MdMedicalServices, MdLocationOn,
 } from 'react-icons/md'
+import { useBatchTranslation } from '@/components/useBatchTranslation'
+import { useKioskLanguage } from '@/components/useKioskLanguage'
 
 interface LocationPin {
   id: string
@@ -39,9 +41,35 @@ const CATEGORY_META: Record<string, { icon: React.ElementType; color: string; bg
 
 export default function KioskFacilities() {
   const router = useRouter()
+  const { language } = useKioskLanguage()
   const [pins, setPins]             = useState<LocationPin[]>([])
   const [loading, setLoading]       = useState(true)
   const [selected, setSelected]     = useState<LocationPin | null>(null)
+
+  const translatedLabels = useBatchTranslation([
+    'Find Facilities',
+    'Maps and directions',
+    'Loading locations...',
+    'No locations configured yet',
+    'The hospital admin can add facility locations via the Admin Portal and Map Management.',
+    'Tap any facility to view Google Maps directions, step-by-step instructions, and a QR code for your phone.',
+  ], language)
+
+  const [pageTitle, pageSubtitle, loadingLabel, noLocationsLabel, noLocationsHint, hintLabel] = translatedLabels
+  const pinTranslationInputs = useMemo(
+    () => pins.flatMap(pin => [pin.name, pin.description || '', pin.floor || '']),
+    [pins],
+  )
+  const pinTranslations = useBatchTranslation(pinTranslationInputs, language)
+  const translatedPins = useMemo(
+    () => pins.map((pin, index) => ({
+      ...pin,
+      translatedName: pinTranslations[index * 3] || pin.name,
+      translatedDescription: pin.description ? pinTranslations[index * 3 + 1] || pin.description : null,
+      translatedFloor: pin.floor ? pinTranslations[index * 3 + 2] || pin.floor : pin.floor,
+    })),
+    [pinTranslations, pins],
+  )
 
   useEffect(() => {
     fetch('/api/locations')
@@ -64,8 +92,8 @@ export default function KioskFacilities() {
           <FaChevronLeft size={14} />
         </button>
         <div className="flex-1">
-          <h1 className="text-white font-bold text-base leading-tight">Find Facilities</h1>
-          <p className="text-white/65 text-xs">Maps & directions â€” Mutare Provincial Hospital</p>
+          <h1 className="text-white font-bold text-base leading-tight">{pageTitle}</h1>
+          <p className="text-white/65 text-xs">{pageSubtitle} - Mutare Provincial Hospital</p>
         </div>
         <FaMapLocationDot className="text-white/60 text-2xl" />
       </header>
@@ -76,20 +104,20 @@ export default function KioskFacilities() {
           <div className="flex items-center justify-center h-48">
             <div className="flex flex-col items-center gap-3 text-gray-400 dark:text-gray-600">
               <FaLocationDot className="text-4xl animate-pulse-soft" />
-              <p className="text-sm font-medium animate-pulse-soft">Loading locationsâ€¦</p>
+              <p className="text-sm font-medium animate-pulse-soft">{loadingLabel}</p>
             </div>
           </div>
         ) : pins.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center px-4">
             <FaMapLocationDot className="text-5xl text-gray-300 dark:text-gray-700 mb-3" />
-            <p className="font-semibold text-gray-500 dark:text-gray-400">No locations configured yet</p>
+            <p className="font-semibold text-gray-500 dark:text-gray-400">{noLocationsLabel}</p>
             <p className="text-sm text-gray-400 dark:text-gray-600 mt-1">
-              The hospital admin can add facility locations via the Admin Portal â†’ Map Management.
+              {noLocationsHint}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 max-w-2xl mx-auto">
-            {pins.map(pin => {
+            {translatedPins.map(pin => {
               const { icon: Icon, color, bg } = meta(pin.category)
               return (
                 <button
@@ -101,13 +129,13 @@ export default function KioskFacilities() {
                     <Icon className={`text-xl ${color}`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-gray-800 dark:text-gray-100 text-sm leading-snug">{pin.name}</p>
-                    {pin.description && (
+                    <p className="font-bold text-gray-800 dark:text-gray-100 text-sm leading-snug">{pin.translatedName}</p>
+                    {pin.translatedDescription && (
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-snug line-clamp-2">
-                        {pin.description}
+                        {pin.translatedDescription}
                       </p>
                     )}
-                    <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 font-medium">{pin.floor}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 font-medium">{pin.translatedFloor}</p>
                   </div>
                 </button>
               )
@@ -120,7 +148,7 @@ export default function KioskFacilities() {
           <div className="max-w-2xl mx-auto mt-4 px-4 py-3 rounded-2xl bg-white/60 dark:bg-gray-800/40 border border-blue-100 dark:border-blue-900/20 flex items-center gap-3">
             <FaMapLocationDot className="text-blue-500 text-xl flex-shrink-0" />
             <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-              Tap any facility to view <strong>Google Maps</strong> directions, step-by-step instructions, and a <strong>QR code</strong> to take directions on your phone.
+              {hintLabel}
             </p>
           </div>
         )}

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useRef, useEffect, useState } from 'react'
 import AuraLogo from './AuraLogo'
@@ -8,6 +8,8 @@ interface Props {
   onClose: () => void
   onNavigate: (href: string) => void
 }
+
+// ─── Action cards ─────────────────────────────────────────────────────────────
 
 function MapCard({ action }: { action: any }) {
   const [qrUrl, setQrUrl] = useState('')
@@ -83,6 +85,9 @@ function DoctorsListCard({ action }: { action: any }) {
           </div>
         ))}
       </div>
+      <div className="px-3 pb-2.5 pt-1">
+        <p className="text-[9px] text-white/35 text-center">Say the doctor&apos;s name to book</p>
+      </div>
     </div>
   )
 }
@@ -98,12 +103,11 @@ function BookingConfirmedCard({ action }: { action: any }) {
         const base = origin || (typeof window !== 'undefined' ? window.location.origin : '')
         const trackUrl = `${base}/kiosk/track?qr=${action.code}`
         const mod = await import('qrcode')
-        const QR = (mod as any).default ?? mod
+        const QR  = (mod as any).default ?? mod
         const dataUrl = await QR.toDataURL(trackUrl, { width: 140, margin: 1, color: { dark: '#003d73', light: '#ffffff' } })
         if (active) setQrUrl(dataUrl)
       })
       .catch(() => {})
-
     return () => { active = false }
   }, [action.code])
 
@@ -123,40 +127,123 @@ function BookingConfirmedCard({ action }: { action: any }) {
         {qrUrl && (
           <div className="pt-1 flex flex-col items-start gap-1">
             <img src={qrUrl} alt="Track appointment QR" className="w-24 h-24 rounded-lg bg-white p-1" />
-            <p className="text-[10px] text-white/40">Scan the QR to track on your phone</p>
+            <p className="text-[10px] text-white/40">Scan to track on your phone</p>
           </div>
         )}
-        <p className="text-[10px] text-white/40">Store this appointment number in your head mate if you prefer</p>
       </div>
     </div>
   )
 }
 
+// ─── Typing dots indicator for processing state ───────────────────────────────
+function TypingIndicator() {
+  return (
+    <div className="flex items-start gap-2">
+      <div className="w-7 h-7 rounded-full bg-blue-600/40 border border-blue-400/30 flex items-center justify-center shrink-0 text-[9px] font-black text-blue-300">
+        AI
+      </div>
+      <div className="bg-white/8 border border-white/10 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+        <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '120ms' }} />
+        <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '240ms' }} />
+      </div>
+    </div>
+  )
+}
+
+// ─── Main VoiceChat overlay ───────────────────────────────────────────────────
 export default function VoiceChat({ onClose, onNavigate }: Props) {
   const lang = typeof window !== 'undefined' ? (localStorage.getItem('aura-language') || 'en') : 'en'
-  const { phase, messages, error, status, start, stop } = useVoicePipeline({ language: lang })
+  const { phase, messages, error, status, start, stop, analyserRef } = useVoicePipeline({ language: lang })
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const barsRef   = useRef<(HTMLDivElement | null)[]>([])
+
+  // Navigate when AI action requests it
+  useEffect(() => {
+    const last = messages[messages.length - 1]
+    if (last?.action?.type === 'NAVIGATE' && last.action.href) {
+      stop()
+      onNavigate(last.action.href)
+    }
+  }, [messages, stop, onNavigate])
+
+  // Scroll to bottom on new messages
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, status])
 
+  // ── Live waveform via requestAnimationFrame ──────────────────────────────
+  useEffect(() => {
+    if (phase === 'idle' || phase === 'error') {
+      barsRef.current.forEach(bar => { if (bar) bar.style.height = '12%' })
+      return
+    }
+
+    const buf = new Float32Array(1024)
+    let rafId: number
+    let t = 0
+
+    const animate = () => {
+      t += 0.03
+
+      let vol = 0
+      if (phase === 'listening' && analyserRef.current) {
+        analyserRef.current.getFloatTimeDomainData(buf)
+        const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length)
+        vol = Math.min(1, rms / 0.07)
+      }
+
+      barsRef.current.forEach((bar, i) => {
+        if (!bar) return
+        const sine = Math.abs(Math.sin(i * 0.55 + t))
+        let height: number
+
+        if (phase === 'listening') {
+          // Real mic volume drives height, sine adds variation
+          height = Math.max(8, vol * 75 + sine * 18)
+        } else if (phase === 'speaking') {
+          // AI speaking: smooth animated wave
+          height = 15 + sine * 60
+        } else if (phase === 'processing') {
+          // Thinking: low gentle pulse
+          height = 6 + sine * 10
+        } else {
+          height = 8
+        }
+        bar.style.height = `${height}%`
+      })
+
+      rafId = requestAnimationFrame(animate)
+    }
+
+    rafId = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(rafId)
+  }, [phase, analyserRef])
+
   const isActive = phase !== 'idle' && phase !== 'error'
+  const isProcessing = phase === 'processing'
 
   const barColor =
-    phase === 'listening'  ? 'bg-emerald-400' :
-    phase === 'speaking'   ? 'bg-blue-400'    :
-    phase === 'processing' ? 'bg-yellow-400'  : 'bg-white/20'
+    phase === 'listening'  ? '#34d399' :   // emerald
+    phase === 'speaking'   ? '#60a5fa' :   // blue
+    phase === 'processing' ? '#fbbf24' :   // yellow
+    '#ffffff33'
 
-  const barActive = phase === 'listening' || phase === 'speaking'
+  // Phase labels
+  const phaseLabel =
+    phase === 'listening'  ? { text: 'Listening',   dot: 'bg-emerald-400' } :
+    phase === 'speaking'   ? { text: 'Speaking',    dot: 'bg-blue-400' }    :
+    phase === 'processing' ? { text: 'Thinking',    dot: 'bg-yellow-400' }  :
+    null
 
   return (
     <div
       className="fixed inset-0 z-[500] flex flex-col"
       style={{ background: 'linear-gradient(160deg, #050d1a 0%, #091525 60%, #050f1c 100%)' }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-6 pb-3 shrink-0">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
         <button
           onClick={() => { stop(); onClose() }}
           className="text-white/50 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
@@ -169,28 +256,22 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
 
         <AuraLogo size={32} showText />
 
-        {phase === 'listening' && (
+        {/* Phase indicator */}
+        {phaseLabel ? (
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-emerald-400 text-xs font-semibold">Listening</span>
+            <span className={`w-2 h-2 rounded-full ${phaseLabel.dot} animate-pulse`} />
+            <span className={`text-xs font-semibold ${
+              phase === 'listening'  ? 'text-emerald-400' :
+              phase === 'speaking'   ? 'text-blue-400'    :
+              'text-yellow-400'
+            }`}>{phaseLabel.text}</span>
           </div>
+        ) : (
+          <div className="w-20" />
         )}
-        {phase === 'speaking' && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            <span className="text-blue-400 text-xs font-semibold">Speaking</span>
-          </div>
-        )}
-        {phase === 'processing' && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-            <span className="text-yellow-400 text-xs font-semibold">Processing</span>
-          </div>
-        )}
-        {(phase === 'idle' || phase === 'error') && <div className="w-20" />}
       </div>
 
-      {/* Conversation transcript — full scrollable log */}
+      {/* ── Conversation transcript ──────────────────────────────────────── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
         {messages.length === 0 && !isActive && (
           <div className="flex flex-col items-center justify-center h-full text-center gap-5 py-10">
@@ -205,9 +286,14 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
             <div>
               <p className="text-white font-bold text-xl mb-1">AURA Voice Assistant</p>
               <p className="text-blue-400/60 text-sm leading-relaxed max-w-xs">
-                Tap the mic below. AURA will greet you, then listen automatically.
+                Tap the mic below. AURA will greet you in your language, then listen automatically.
                 Everything said is shown on screen in real time.
               </p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center mt-1">
+              {['Book a doctor', 'Where is the pharmacy?', 'What are the fees?', 'Show me directions'].map(hint => (
+                <span key={hint} className="px-3 py-1 rounded-full border border-white/10 text-white/40 text-[11px]">{hint}</span>
+              ))}
             </div>
             {error && <p className="text-red-400 text-sm px-4 mt-2">{error}</p>}
           </div>
@@ -230,36 +316,40 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
               </div>
             </div>
             {/* Interactive action cards */}
-            {msg.action?.type === 'MAP' && <MapCard action={msg.action} />}
-            {msg.action?.type === 'APPOINTMENT' && <AppointmentCard action={msg.action} />}
-            {msg.action?.type === 'DOCTORS_LIST' && <DoctorsListCard action={msg.action} />}
-            {msg.action?.type === 'BOOKING_CONFIRMED' && <BookingConfirmedCard action={msg.action} />}
+            {msg.action?.type === 'MAP'               && <MapCard             action={msg.action} />}
+            {msg.action?.type === 'APPOINTMENT'        && <AppointmentCard    action={msg.action} />}
+            {msg.action?.type === 'DOCTORS_LIST'       && <DoctorsListCard    action={msg.action} />}
+            {msg.action?.type === 'BOOKING_CONFIRMED'  && <BookingConfirmedCard action={msg.action} />}
           </div>
         ))}
 
-        {/* Live status */}
-        {isActive && status && (
-          <p className="text-center text-xs text-white/40 italic py-1">{status}</p>
+        {/* Typing indicator while AI is thinking */}
+        {isProcessing && <TypingIndicator />}
+
+        {/* Live status text */}
+        {isActive && status && !isProcessing && (
+          <p className="text-center text-xs text-white/35 italic py-1">{status}</p>
         )}
         {isActive && error && (
           <p className="text-center text-xs text-red-400 py-1">{error}</p>
         )}
       </div>
 
-      {/* Waveform */}
+      {/* ── Live waveform ────────────────────────────────────────────────── */}
       <div className="px-8 py-3 shrink-0">
         <div className="flex items-end justify-center gap-[3px] h-10">
-          {Array.from({ length: 24 }).map((_, i) => (
+          {Array.from({ length: 28 }).map((_, i) => (
             <div
               key={i}
-              className={`w-[3px] rounded-full transition-all duration-150 ${barColor}`}
-              style={barActive ? { height: `${20 + Math.abs(Math.sin(i * 0.8)) * 65}%` } : { height: '18%' }}
+              ref={el => { barsRef.current[i] = el }}
+              className="w-[3px] rounded-full transition-none"
+              style={{ height: '12%', backgroundColor: barColor }}
             />
           ))}
         </div>
       </div>
 
-      {/* Button */}
+      {/* ── Start / End button ───────────────────────────────────────────── */}
       <div className="flex flex-col items-center gap-2 pb-10 shrink-0">
         {!isActive ? (
           <button
@@ -287,7 +377,7 @@ export default function VoiceChat({ onClose, onNavigate }: Props) {
           </button>
         )}
         <p className="text-blue-400/40 text-[11px] tracking-wide">
-          {isActive ? 'Tap to hang up' : 'Tap to start'}
+          {isActive ? 'Tap to hang up' : 'Tap to speak with AURA'}
         </p>
       </div>
     </div>

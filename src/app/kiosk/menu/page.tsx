@@ -1,9 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AuraLogo from '@/components/AuraLogo'
 import { t } from '@/lib/i18n'
+import { useKioskLanguage } from '@/components/useKioskLanguage'
+import { useBatchTranslation } from '@/components/useBatchTranslation'
 import {
   FaUserDoctor, FaPills, FaClipboardList, FaCircleInfo,
   FaPersonWalking, FaToilet, FaTicket,
@@ -13,30 +15,42 @@ import {
 export default function KioskMenu() {
   const router = useRouter()
   const [listening, setListening] = useState(false)
-  const [lang, setLang] = useState('en')
+  const { language: lang } = useKioskLanguage()
+
+  const translatedLabels = useBatchTranslation([
+    'Hospital Info & Fees',
+    'Services, fees, and policies',
+    'Talk to Assistant',
+    'Voice or chat assistant',
+    'Voice input is not supported in this browser.',
+    'Water',
+    'Sanitizer',
+    'Tissues',
+  ], lang)
+
+  const [hospitalInfoLabel, hospitalInfoSubLabel, assistantLabel, assistantSubLabel, voiceUnsupportedLabel, waterLabel, sanitizerLabel, tissuesLabel] = translatedLabels
 
   useEffect(() => {
-    setLang(localStorage.getItem('aura-language') ?? 'en')
     // Pre-warm all kiosk routes so first tap is instant
     ;['/kiosk/doctors', '/kiosk/medication', '/kiosk/symptoms', '/kiosk/information',
       '/kiosk/visit', '/kiosk/facilities', '/kiosk/queue', '/kiosk/assistant',
     ].forEach(href => router.prefetch(href))
-  }, [])
+  }, [router])
 
-  const MENU_ITEMS = [
+  const MENU_ITEMS = useMemo(() => [
     { id: 'doctors',     label: t(lang, 'seeDoctor'),      subLabel: t(lang, 'seeDoctorSub'),       icon: FaUserDoctor,    href: '/kiosk/doctors',     color: 'from-blue-500 to-blue-700' },
     { id: 'medication',  label: t(lang, 'getMedication'),  subLabel: t(lang, 'getMedicationSub'),   icon: FaPills,         href: '/kiosk/medication',  color: 'from-emerald-500 to-emerald-700' },
     { id: 'symptoms',    label: t(lang, 'symptomCheck'),   subLabel: t(lang, 'symptomCheckSub'),    icon: FaClipboardList, href: '/kiosk/symptoms',    color: 'from-orange-500 to-orange-700' },
-    { id: 'information', label: 'Hospital Info & Fees',    subLabel: 'Services, fees & policies',   icon: FaCircleInfo,    href: '/kiosk/information', color: 'from-violet-500 to-violet-700' },
+    { id: 'information', label: hospitalInfoLabel,         subLabel: hospitalInfoSubLabel,          icon: FaCircleInfo,    href: '/kiosk/information', color: 'from-violet-500 to-violet-700' },
     { id: 'visit',       label: t(lang, 'visitSomeone'),   subLabel: t(lang, 'visitSomeoneSub'),    icon: FaPersonWalking, href: '/kiosk/visit',       color: 'from-pink-500 to-pink-700' },
     { id: 'facilities',  label: t(lang, 'findFacilities'), subLabel: t(lang, 'findFacilitiesSub'),  icon: FaToilet,        href: '/kiosk/facilities',  color: 'from-cyan-500 to-cyan-700' },
     { id: 'queue',       label: t(lang, 'checkQueue'),     subLabel: t(lang, 'checkQueueSub'),      icon: FaTicket,        href: '/kiosk/queue',       color: 'from-indigo-500 to-indigo-700' },
-    { id: 'assistant',   label: 'Talk to Assistant',       subLabel: 'Voice or chat 🤖',            icon: FaRobot,         href: '/kiosk/assistant',   color: 'from-rose-500 to-rose-700' },
-  ]
+    { id: 'assistant',   label: assistantLabel,            subLabel: assistantSubLabel,             icon: FaRobot,         href: '/kiosk/assistant',   color: 'from-rose-500 to-rose-700' },
+  ], [assistantLabel, assistantSubLabel, hospitalInfoLabel, hospitalInfoSubLabel, lang])
 
   const startVoice = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Voice input is not supported in this browser.')
+      alert(voiceUnsupportedLabel)
       return
     }
     setListening(true)
@@ -109,9 +123,9 @@ export default function KioskMenu() {
       {/* ── Bottom bar: amenities + voice ── */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-gray-100 dark:border-[#1a1a1a] flex-shrink-0">
         <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-          <span>💧 Water</span>
-          <span>🧴 Sanitizer</span>
-          <span>🧻 Tissues</span>
+          <span>💧 {waterLabel}</span>
+          <span>🧴 {sanitizerLabel}</span>
+          <span>🧻 {tissuesLabel}</span>
         </div>
         <button
           onClick={startVoice}

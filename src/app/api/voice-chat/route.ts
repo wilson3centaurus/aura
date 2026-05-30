@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openAiKey = process.env.OPENAI_API_KEY || process.env.OPEN_API_KEY
+const openai = new OpenAI({ apiKey: openAiKey })
 
 const SYSTEM_PROMPT = `You are AURA, the friendly AI assistant at Mutare Provincial Hospital in Zimbabwe.
 You help patients navigate the hospital. 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
 
     const safeMessage = message.slice(0, 500).trim()
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!openAiKey) {
       return NextResponse.json(fallbackResponse(safeMessage))
     }
 

@@ -1,23 +1,77 @@
 ﻿'use client'
 
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LANGUAGES } from '@/types'
 import VoiceChat from '@/components/VoiceChat'
 import { useTheme } from '@/components/ThemeProvider'
+import { FaArrowRight, FaGlobe, FaRoute, FaStethoscope, FaTableCellsLarge } from 'react-icons/fa6'
+import { useKioskLanguage } from '@/components/useKioskLanguage'
+import { useBatchTranslation } from '@/components/useBatchTranslation'
+import { RESEARCH_OBJECTIVES, type ResearchObjectiveId } from '@/lib/research-objectives'
+
+const OBJECTIVE_ICONS = {
+  'objective-1': FaTableCellsLarge,
+  'objective-2': FaGlobe,
+  'objective-3': FaStethoscope,
+  'objective-4': FaRoute,
+} as const
 
 export default function KioskWelcome() {
   const router = useRouter()
   const { theme, toggleTheme } = useTheme()
+  const { language, setLanguage } = useKioskLanguage()
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [selectedObjectiveId, setSelectedObjectiveId] = useState<ResearchObjectiveId>('objective-1')
+  const lastObjectiveTapRef = useRef<{ id: ResearchObjectiveId; time: number } | null>(null)
+
+  const selectedObjective = useMemo(
+    () => RESEARCH_OBJECTIVES.find(objective => objective.id === selectedObjectiveId) || RESEARCH_OBJECTIVES[0],
+    [selectedObjectiveId],
+  )
+
+  const translatedTexts = useBatchTranslation([
+    'Touch your language below to begin.',
+    'Use Voice',
+    'Speak with AURA',
+    'English, Shona, and Ndebele supported live.',
+    'Research Objectives',
+    'Tap once to preview an objective. Double tap to open its live showcase.',
+    selectedObjective.title,
+    selectedObjective.summary,
+    'Open objective showcase',
+    'Ambulant kiosk amenities',
+    'Water',
+    'Sanitizer',
+    'Tissues',
+  ], language)
+
+  const [touchInstruction, voiceLabel, voiceTitle, voiceSubtitle, objectivesLabel, objectivesHint, objectiveTitle, objectiveSummary, openShowcaseLabel, amenitiesLabel, waterLabel, sanitizerLabel, tissuesLabel] = translatedTexts
 
   const selectLanguage = (langCode: string) => {
-    localStorage.setItem('aura-language', langCode)
+    setLanguage(langCode)
     if (langCode === 'sl') {
       router.push('/kiosk/assistant?mode=sign')
       return
     }
     router.push('/kiosk/menu')
+  }
+
+  const openObjective = (objectiveId: ResearchObjectiveId) => {
+    const objective = RESEARCH_OBJECTIVES.find(item => item.id === objectiveId)
+    if (objective) router.push(objective.showcaseRoute)
+  }
+
+  const handleObjectivePress = (objectiveId: ResearchObjectiveId) => {
+    const now = Date.now()
+    const lastTap = lastObjectiveTapRef.current
+    if (lastTap && lastTap.id === objectiveId && now - lastTap.time < 350) {
+      openObjective(objectiveId)
+      lastObjectiveTapRef.current = null
+      return
+    }
+    setSelectedObjectiveId(objectiveId)
+    lastObjectiveTapRef.current = { id: objectiveId, time: now }
   }
 
   return (
@@ -70,7 +124,7 @@ export default function KioskWelcome() {
 
         {/* Bottom strip: language instruction */}
         <div className="relative mt-3 pt-2.5 border-t border-white/10 text-center">
-          <p className="text-white/60 text-sm">Touch your language below to begin · Bata mutauro wako pasi apa kutanga</p>
+          <p className="text-white/60 text-sm">{touchInstruction}</p>
         </div>
       </header>
 
@@ -79,7 +133,7 @@ export default function KioskWelcome() {
 
         {/* Language grid */}
         <div className="flex-1 flex flex-col px-3 py-2 min-w-0">
-          <div className="grid grid-cols-4 gap-2 flex-1 content-start">
+          <div className="grid grid-cols-4 gap-2 content-start">
             {LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
@@ -104,7 +158,7 @@ export default function KioskWelcome() {
 
         {/* Voice panel */}
         <div className="w-36 flex flex-col items-center justify-center gap-2 px-3 flex-shrink-0">
-          <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest text-center">Use Voice</p>
+          <p className="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest text-center">{voiceLabel}</p>
           <button
             onClick={() => setVoiceOpen(true)}
             className="relative w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-[#003d73] to-[#0077cc] text-white shadow-lg hover:scale-105 active:scale-95 transition-all duration-200"
@@ -119,18 +173,83 @@ export default function KioskWelcome() {
             </svg>
           </button>
           <div className="text-center">
-            <p className="text-xs font-bold text-gray-700 dark:text-gray-300">Speak with AURA</p>
-            <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">En · Shona · Ndebele</p>
+            <p className="text-xs font-bold text-gray-700 dark:text-gray-300">{voiceTitle}</p>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">{voiceSubtitle}</p>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
+      {/* ── Research Objectives ─────────────────────────────────────────── */}
+      <section className="border-t border-gray-100 dark:border-[#1a1a1a] px-4 pt-3 pb-2 flex-shrink-0 bg-gradient-to-b from-transparent to-[#003d73]/[0.025] dark:to-[#003d73]/[0.07]">
+
+        {/* Header row */}
+        <div className="flex items-center gap-3 mb-2.5">
+          <div className="flex-1">
+            <p className="text-[9px] font-black uppercase tracking-[0.4em] text-[#003d73] dark:text-blue-300">{objectivesLabel}</p>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 hidden sm:block">{objectivesHint}</p>
+          </div>
+          <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/25 text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wide border border-emerald-200/60 dark:border-emerald-700/30">Demo Ready</span>
+        </div>
+
+        {/* 4 objective icon pills */}
+        <div className="flex gap-2 mb-2.5">
+          {RESEARCH_OBJECTIVES.map((objective) => {
+            const Icon = OBJECTIVE_ICONS[objective.id]
+            const active = objective.id === selectedObjectiveId
+            return (
+              <button
+                key={objective.id}
+                onPointerDown={() => handleObjectivePress(objective.id)}
+                onDoubleClick={() => openObjective(objective.id)}
+                className={`relative flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border-2 select-none transition-all duration-200 active:scale-95 ${
+                  active
+                    ? 'border-[#003d73] bg-[#003d73] text-white shadow-lg shadow-blue-900/25 scale-[1.03]'
+                    : 'border-gray-200 dark:border-[#252525] bg-white dark:bg-[#111] text-gray-400 dark:text-gray-500 hover:border-[#003d73]/40 dark:hover:border-blue-700/40'
+                }`}
+              >
+                {/* Active pulse dot */}
+                {active && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full ring-2 ring-white dark:ring-[#0a0a0a] animate-pulse" />
+                )}
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                  active ? 'bg-white/20' : 'bg-[#003d73]/8 dark:bg-blue-900/25'
+                }`}>
+                  <Icon size={16} />
+                </div>
+                <span className="text-[9px] font-black tracking-widest">{objective.number}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Selected objective reveal */}
+        <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-[#003d73]/6 dark:bg-[#003d73]/14 border border-[#003d73]/12 dark:border-[#003d73]/28">
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#003d73]/65 dark:text-blue-400/65 mb-0.5">
+              Objective {selectedObjective.number}
+            </p>
+            <p className="text-[11px] font-bold text-gray-900 dark:text-white leading-snug line-clamp-2">{objectiveTitle}</p>
+            {objectiveSummary && (
+              <p className="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed line-clamp-1">{objectiveSummary}</p>
+            )}
+          </div>
+          <button
+            onClick={() => openObjective(selectedObjective.id)}
+            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#003d73] text-white text-[10px] font-black uppercase tracking-[0.12em] shadow-md shadow-blue-900/20 hover:bg-[#002d57] active:scale-95 transition-all"
+          >
+            {openShowcaseLabel}
+            <FaArrowRight size={9} />
+          </button>
+        </div>
+
+      </section>
+
       <footer className="border-t border-gray-100 dark:border-[#1a1a1a] px-4 py-1.5 flex items-center justify-between text-[9px] text-gray-400 dark:text-gray-600 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <span>💧 Water</span>
-          <span>🧴 Sanitizer</span>
-          <span>🧻 Tissues</span>
+          <span className="uppercase tracking-[0.24em] text-[8px]">{amenitiesLabel}</span>
+          <span>💧 {waterLabel}</span>
+          <span>🧴 {sanitizerLabel}</span>
+          <span>🧻 {tissuesLabel}</span>
         </div>
         <span className="font-mono">AURA v2.0</span>
       </footer>

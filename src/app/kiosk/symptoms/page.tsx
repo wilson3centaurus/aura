@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { SYMPTOM_CATEGORIES } from '@/types'
+import { useBatchTranslation } from '@/components/useBatchTranslation'
+import { useKioskLanguage } from '@/components/useKioskLanguage'
 import { FaChevronLeft, FaClipboardList, FaUserDoctor, FaClock, FaCalendarDays, FaCalendarWeek, FaPills, FaStore } from 'react-icons/fa6'
 import { MdWarning, MdMedicalServices, MdCheckCircle } from 'react-icons/md'
 
@@ -20,6 +22,7 @@ interface AssessmentResult {
 
 export default function KioskSymptoms() {
   const router = useRouter()
+  const { language } = useKioskLanguage()
   const [step, setStep] = useState<Step>('category')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [severity, setSeverity] = useState(5)
@@ -28,6 +31,26 @@ export default function KioskSymptoms() {
   const [otherText, setOtherText] = useState('')
   const [result, setResult] = useState<AssessmentResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+
+  const translatedLabels = useBatchTranslation([
+    'Symptom Check',
+    'Select your main concern',
+    'Tell us more',
+    'Assessment results',
+    'This is not a diagnosis. Please consult a doctor for medical advice.',
+    'What brings you to the hospital today?',
+    'Describe what you are feeling',
+    'How severe is it? (1 to 10)',
+    'How long have you had this?',
+    'Today',
+    'Few Days',
+    'Weeks or more',
+    'Additional symptoms?',
+    'AI is analysing your symptoms...',
+    'Get Assessment',
+  ], language)
+
+  const [pageTitle, categoryStepLabel, detailsStepLabel, resultStepLabel, disclaimerLabel, mainQuestionLabel, describeSymptomsLabel, severityLabel, durationLabel, todayLabel, fewDaysLabel, weeksLabel, additionalSymptomsLabel, analysingLabel, getAssessmentLabel] = translatedLabels
 
   const additionalOptions = [
     'Fever', 'Nausea', 'Dizziness', 'Difficulty Breathing', 'Vomiting',
@@ -241,9 +264,9 @@ Main complaint: ${symptoms}`,
           <FaChevronLeft size={14} />
         </button>
         <div className="flex-1">
-          <h1 className="text-white font-bold text-base leading-tight">Symptom Check</h1>
+          <h1 className="text-white font-bold text-base leading-tight">{pageTitle}</h1>
           <p className="text-white/65 text-xs">
-            {step === 'category' ? 'Select your main concern' : step === 'details' ? 'Tell us more' : 'Assessment results'}
+            {step === 'category' ? categoryStepLabel : step === 'details' ? detailsStepLabel : resultStepLabel}
           </p>
         </div>
         <FaClipboardList className="text-white/60 text-2xl" />
@@ -252,7 +275,7 @@ Main complaint: ${symptoms}`,
       {/* Disclaimer */}
       <div className="mx-4 mt-3 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 flex items-center gap-2">
         <MdWarning className="text-amber-500 flex-shrink-0" />
-        <p className="text-xs text-amber-700 dark:text-amber-400">This is not a diagnosis. Please consult a doctor for medical advice.</p>
+        <p className="text-xs text-amber-700 dark:text-amber-400">{disclaimerLabel}</p>
       </div>
 
       <main className="flex-1 p-4 overflow-y-auto">
@@ -260,7 +283,7 @@ Main complaint: ${symptoms}`,
         {step === 'category' && (
           <div className="max-w-2xl mx-auto">
             <p className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              What brings you to the hospital today?
+              {mainQuestionLabel}
             </p>
             <div className="grid grid-cols-2 gap-3">
               {SYMPTOM_CATEGORIES.map(cat => (
@@ -283,7 +306,7 @@ Main complaint: ${symptoms}`,
             {selectedCategory === 'other' && (
               <div>
                 <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Describe what you're feeling
+                  {describeSymptomsLabel}
                 </label>
                 <textarea
                   value={otherText}
@@ -297,7 +320,7 @@ Main complaint: ${symptoms}`,
 
             <div>
               <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                How severe is it? (1-10)
+                {severityLabel}
               </label>
               <div className="flex items-center gap-3">
                 <span className="text-xl">😊</span>
@@ -313,13 +336,13 @@ Main complaint: ${symptoms}`,
 
             <div>
               <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                How long have you had this?
+                {durationLabel}
               </label>
               <div className="flex gap-3">
                 {[
-                  { v: 'today', l: 'Today', icon: FaClock },
-                  { v: 'days', l: 'Few Days', icon: FaCalendarDays },
-                  { v: 'weeks', l: 'Weeks+', icon: FaCalendarWeek },
+                  { v: 'today', l: todayLabel, icon: FaClock },
+                  { v: 'days', l: fewDaysLabel, icon: FaCalendarDays },
+                  { v: 'weeks', l: weeksLabel, icon: FaCalendarWeek },
                 ].map(opt => {
                   const Icon = opt.icon
                   return (
@@ -338,7 +361,7 @@ Main complaint: ${symptoms}`,
 
             <div>
               <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Additional symptoms?
+                {additionalSymptomsLabel}
               </label>
               <div className="flex flex-wrap gap-2">
                 {additionalOptions.map(s => (
@@ -357,9 +380,9 @@ Main complaint: ${symptoms}`,
             <button onClick={runAssessment} disabled={aiLoading || (selectedCategory === 'other' && !otherText.trim())}
               className="w-full py-4 rounded-2xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 active:scale-95 transition-all shadow-lg disabled:opacity-60 flex items-center justify-center gap-3">
               {aiLoading ? (
-                <><span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" /> AI is analysing your symptoms…</>
+                <><span className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" /> {analysingLabel}</>
               ) : (
-                'Get Assessment'
+                getAssessmentLabel
               )}
             </button>
           </div>

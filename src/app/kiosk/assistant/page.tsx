@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import QRCode from 'qrcode'
+import { useBatchTranslation } from '@/components/useBatchTranslation'
+import VoiceChat from '@/components/VoiceChat'
 
 type Mode = 'select' | 'text' | 'voice' | 'sign'
 
@@ -204,6 +206,7 @@ function KioskAssistantInner() {
   const searchParams = useSearchParams()
   const initMode: Mode = searchParams.get('mode') === 'sign' ? 'sign' : 'select'
   const [mode, setMode] = useState<Mode>(initMode)
+  const [kioskVoiceOpen, setKioskVoiceOpen] = useState(false)
 
   // All hooks declared up-front (no hooks after conditional returns)
   const [messages,  setMessages]  = useState<{ role: 'user' | 'model'; content: string; action?: any }[]>([])
@@ -215,6 +218,25 @@ function KioskAssistantInner() {
   const [lang] = useState(() =>
     typeof window !== 'undefined' ? localStorage.getItem('aura-language') || 'en' : 'en'
   )
+  const translatedLabels = useBatchTranslation([
+    'How would you like to interact?',
+    'Choose text, voice, or sign language.',
+    'Text Assistant',
+    'Type your questions or scan a QR code to chat from your phone.',
+    'Voice Call',
+    'Scan a QR code with your phone and speak to AURA privately.',
+    'Sign Language',
+    'Use your hands to sign. The camera interprets your message via AI.',
+    'Scan with your phone to speak to AURA privately.',
+    'Scan with your phone',
+    'Point your phone camera at the QR code below to start a private voice conversation with AURA.',
+    'Or use this kiosk instead',
+    'Ask me anything about the hospital.',
+    "Hello! I'm Aura.",
+    'How can I help you today?',
+  ], lang)
+
+  const [selectTitle, selectSubtitle, textAssistantLabel, textAssistantHint, voiceCallLabel, voiceCallHint, signLanguageLabel, signLanguageHint, voiceHeaderHint, scanTitle, scanSubtitle, useKioskLabel, textHeaderHint, helloLabel, helloHint] = translatedLabels
 
   useEffect(() => {
     if (mode !== 'text' && mode !== 'voice') return
@@ -264,25 +286,25 @@ function KioskAssistantInner() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div>
-            <h1 className="text-2xl font-black text-white">How would you like to interact?</h1>
-            <p className="text-gray-400 mt-1">Choose text, voice, or sign language.</p>
+            <h1 className="text-2xl font-black text-white">{selectTitle}</h1>
+            <p className="text-gray-400 mt-1">{selectSubtitle}</p>
           </div>
         </header>
         <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-6 gap-6 max-w-5xl mx-auto w-full">
           <button onClick={() => setMode('text')} className="flex-1 w-full bg-[#111] hover:bg-[#1a1a1a] border border-[#222] rounded-3xl p-8 flex flex-col items-center justify-center gap-4 transition-all group">
             <div className="w-24 h-24 rounded-full bg-blue-500/10 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">💬</div>
-            <h2 className="text-2xl font-black text-white mt-2">Text Assistant</h2>
-            <p className="text-gray-400 text-center">Type your questions or scan a QR code to chat from your phone.</p>
+            <h2 className="text-2xl font-black text-white mt-2">{textAssistantLabel}</h2>
+            <p className="text-gray-400 text-center">{textAssistantHint}</p>
           </button>
           <button onClick={() => setMode('voice')} className="flex-1 w-full bg-[#111] hover:bg-[#1a1a1a] border border-[#222] rounded-3xl p-8 flex flex-col items-center justify-center gap-4 transition-all group">
             <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">📱</div>
-            <h2 className="text-2xl font-black text-white mt-2">Voice Call</h2>
-            <p className="text-gray-400 text-center">Scan a QR code with your phone and speak to AURA privately.</p>
+            <h2 className="text-2xl font-black text-white mt-2">{voiceCallLabel}</h2>
+            <p className="text-gray-400 text-center">{voiceCallHint}</p>
           </button>
           <button onClick={() => setMode('sign')} className="flex-1 w-full bg-[#111] hover:bg-[#1a1a1a] border border-[#222] rounded-3xl p-8 flex flex-col items-center justify-center gap-4 transition-all group">
             <div className="w-24 h-24 rounded-full bg-purple-500/10 flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">🤲</div>
-            <h2 className="text-2xl font-black text-white mt-2">Sign Language</h2>
-            <p className="text-gray-400 text-center">Use your hands to sign. The camera interprets your message via AI.</p>
+            <h2 className="text-2xl font-black text-white mt-2">{signLanguageLabel}</h2>
+            <p className="text-gray-400 text-center">{signLanguageHint}</p>
           </button>
         </div>
       </div>
@@ -310,21 +332,22 @@ function KioskAssistantInner() {
   // ─── Voice mode — QR code for patient's phone ──────────────────────────
   if (mode === 'voice') {
     return (
+      <>
       <div className="flex flex-col h-full bg-[#0a0a0a]">
         <header className="px-6 py-5 flex items-center gap-4 border-b border-[#222]">
           <button onClick={() => setMode('select')} className="p-3 rounded-2xl bg-[#111] text-white hover:bg-[#222] transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div>
-            <h1 className="text-2xl font-black text-white">Voice Call</h1>
-            <p className="text-gray-400 text-sm mt-0.5">Scan with your phone to speak to AURA privately</p>
+            <h1 className="text-2xl font-black text-white">{voiceCallLabel}</h1>
+            <p className="text-gray-400 text-sm mt-0.5">{voiceHeaderHint}</p>
           </div>
         </header>
         <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 overflow-y-auto">
           <div className="text-7xl animate-bounce">📱</div>
           <div className="text-center">
-            <h2 className="text-3xl font-black text-white mb-3">Scan with your phone</h2>
-            <p className="text-gray-400 max-w-sm leading-relaxed">Point your phone camera at the QR code below to start a private voice conversation with AURA.</p>
+            <h2 className="text-3xl font-black text-white mb-3">{scanTitle}</h2>
+            <p className="text-gray-400 max-w-sm leading-relaxed">{scanSubtitle}</p>
           </div>
           {qrVoiceUrl ? (
             <div className="p-5 bg-white rounded-3xl shadow-2xl border-4 border-white">
@@ -335,11 +358,38 @@ function KioskAssistantInner() {
               <span className="text-white/30 text-sm">Generating QR code...</span>
             </div>
           )}
-          <button onClick={() => router.push('/patient/assistant?voice=true')} className="text-white/30 text-xs underline underline-offset-2 hover:text-white/60 transition-colors">
-            Or use this kiosk instead
-          </button>
+          {/* ── Kiosk microphone option ── */}
+          <div className="flex flex-col items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 w-full max-w-xs">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-white/25 text-xs">or</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+            <button
+              onClick={() => setKioskVoiceOpen(true)}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/8 border border-white/15 text-white text-sm font-semibold hover:bg-white/15 transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+              Use this kiosk microphone
+            </button>
+            <p className="text-white/20 text-[11px]">Speak directly — no phone needed</p>
+          </div>
         </div>
       </div>
+
+      {/* Kiosk mic VoiceChat overlay */}
+      {kioskVoiceOpen && (
+        <VoiceChat
+          onClose={() => setKioskVoiceOpen(false)}
+          onNavigate={(href) => { setKioskVoiceOpen(false); router.push(href) }}
+        />
+      )}
+      </>
     )
   }
 
@@ -351,8 +401,8 @@ function KioskAssistantInner() {
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
         <div className="flex-1">
-          <h1 className="text-white font-black text-lg">Text Assistant</h1>
-          <p className="text-white/70 text-xs">Ask me anything about the hospital.</p>
+          <h1 className="text-white font-black text-lg">{textAssistantLabel}</h1>
+          <p className="text-white/70 text-xs">{textHeaderHint}</p>
         </div>
       </header>
       <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
@@ -361,8 +411,8 @@ function KioskAssistantInner() {
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-4">
                 <div className="w-20 h-20 rounded-full bg-[#003d73]/10 flex items-center justify-center text-4xl shadow-lg border border-[#003d73]/20">🤖</div>
-                <h2 className="text-xl font-black text-gray-900 dark:text-white">Hello! I'm Aura.</h2>
-                <p className="text-gray-500 max-w-sm text-sm">How can I help you today?</p>
+                <h2 className="text-xl font-black text-gray-900 dark:text-white">{helloLabel}</h2>
+                <p className="text-gray-500 max-w-sm text-sm">{helloHint}</p>
                 <div className="flex flex-wrap gap-2 justify-center mt-4">
                   {['Where is the Pharmacy?', 'How do I book an appointment?', 'What are the visiting hours?'].map(q => (
                     <button key={q} onClick={() => setInput(q)} className="px-4 py-2 rounded-full border border-gray-200 dark:border-[#333] text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#111]">{q}</button>
