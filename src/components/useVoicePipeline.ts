@@ -114,14 +114,22 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
       MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
 
-    // Speak text: tries ElevenLabs TTS first, falls back to browser speechSynthesis
+    // Speak text: tries ElevenLabs/OpenAI TTS first (3 s timeout), falls back to browser speechSynthesis
     async function speakText(text: string): Promise<void> {
       try {
-        const ttsRes = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, language: langRef.current }),
-        })
+        const ctrl = new AbortController()
+        const ttsTimeout = setTimeout(() => ctrl.abort(), 3000)
+        let ttsRes: Response
+        try {
+          ttsRes = await fetch('/api/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, language: langRef.current }),
+            signal: ctrl.signal,
+          })
+        } finally {
+          clearTimeout(ttsTimeout)
+        }
         if (ttsRes.ok) {
           const url = URL.createObjectURL(await ttsRes.blob())
           return new Promise<void>(resolve => {
@@ -141,8 +149,11 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
         const utter = new SpeechSynthesisUtterance(text)
         utter.rate  = 1.05
         utter.pitch = 1.0
-        utter.onend   = () => resolve()
-        utter.onerror = () => resolve()
+        // Safety net: if browser synthesis never fires onend, unblock after 30 s
+        const guard = setTimeout(() => { window.speechSynthesis.cancel(); resolve() }, 30_000)
+        const done  = () => { clearTimeout(guard); resolve() }
+        utter.onend   = done
+        utter.onerror = done
         window.speechSynthesis.speak(utter)
       })
     }

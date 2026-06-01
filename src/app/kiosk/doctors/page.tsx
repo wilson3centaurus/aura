@@ -124,7 +124,7 @@ export default function KioskDoctors() {
     const trimmedPhone = bookingForm.phone.trim()
 
     if (trimmedName.length < 3) nextErrors.name = nameRequiredLabel
-    if (trimmedPhone && !/^\+?[0-9\s-]{9,15}$/.test(trimmedPhone)) nextErrors.phone = phoneInvalidLabel
+    if (trimmedPhone && !/^[0-9]{10}$/.test(trimmedPhone)) nextErrors.phone = phoneInvalidLabel
     if (!symptoms) nextErrors.symptoms = symptomsRequiredLabel
 
     setFieldErrors(nextErrors)
@@ -194,7 +194,7 @@ export default function KioskDoctors() {
             <p className="text-white/60 text-[10px] uppercase tracking-widest">Appointment Booked</p>
             <h1 className="text-white font-black text-base">Your QR Ticket</h1>
           </div>
-          <button onClick={() => router.push('/kiosk/menu')}
+          <button onPointerDown={() => router.push('/kiosk/menu')}
             className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition-colors">
             Done
           </button>
@@ -230,13 +230,13 @@ export default function KioskDoctors() {
           </div>
 
           <button
-            onClick={() => router.push(`/kiosk/track?qr=${bookingResult.qrCode}`)}
+            onPointerDown={() => router.push(`/kiosk/track?qr=${bookingResult.qrCode}`)}
             className="w-full max-w-sm py-3.5 rounded-2xl bg-[#003d73] text-white font-black text-sm shadow-lg shadow-blue-900/20 hover:bg-[#002d57] transition-colors"
           >
             Track Appointment Status →
           </button>
           <button
-            onClick={() => router.push('/kiosk/menu')}
+            onPointerDown={() => router.push('/kiosk/menu')}
             className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
           >
             Return to Main Menu
@@ -252,7 +252,7 @@ export default function KioskDoctors() {
     return (
       <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
         <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4 flex items-center gap-3">
-          <button onClick={() => setBookingDoctor(null)} className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors">
+          <button onPointerDown={() => setBookingDoctor(null)} className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div className="flex-1">
@@ -303,11 +303,13 @@ export default function KioskDoctors() {
                 <input
                   type="tel"
                   value={bookingForm.phone}
+                  maxLength={10}
                   onChange={e => {
-                    setBookingForm({ ...bookingForm, phone: e.target.value })
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                    setBookingForm({ ...bookingForm, phone: digits })
                     setFieldErrors(prev => ({ ...prev, phone: undefined }))
                   }}
-                  placeholder="+263 7XX XXX XXX"
+                  placeholder="0771234567"
                   className={`w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111] border text-base text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#003d73] ${fieldErrors.phone ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-[#222]'}`}
                 />
                 {fieldErrors.phone && <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">{fieldErrors.phone}</p>}
@@ -320,7 +322,7 @@ export default function KioskDoctors() {
                     <button
                       key={s}
                       type="button"
-                      onClick={() => toggleSymptom(s)}
+                      onPointerDown={() => toggleSymptom(s)}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${selectedSymptoms.includes(s)
                           ? 'bg-[#003d73] border-[#003d73] text-white shadow-sm'
                           : 'bg-gray-50 dark:bg-[#1a1a1a] border-gray-200 dark:border-[#333] text-gray-600 dark:text-gray-400 hover:border-[#003d73] dark:hover:border-blue-500'
@@ -354,7 +356,7 @@ export default function KioskDoctors() {
 
             <div className="mt-5 space-y-2.5">
               <button
-                onClick={submitBooking}
+                onPointerDown={submitBooking}
                 disabled={booking || !bookingForm.name.trim() || (!selectedSymptoms.length && !bookingForm.symptoms.trim())}
                 className="w-full py-4 rounded-2xl bg-[#003d73] hover:bg-[#002d57] text-white font-black text-base transition-all disabled:opacity-50 shadow-lg shadow-blue-900/20"
               >
@@ -366,7 +368,7 @@ export default function KioskDoctors() {
                 ) : submitBookingLabel}
               </button>
               <button
-                onClick={() => setBookingDoctor(null)}
+                onPointerDown={() => setBookingDoctor(null)}
                 className="w-full py-3 rounded-2xl border border-gray-200 dark:border-[#222] text-gray-600 dark:text-gray-400 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-[#111] transition-colors"
               >
                 {cancelLabel}
@@ -382,7 +384,7 @@ export default function KioskDoctors() {
     <div className="flex flex-col h-full bg-white dark:bg-[#0a0a0a]">
       <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4">
         <div className="flex items-center gap-3 mb-3">
-          <button onClick={() => router.push('/kiosk/menu')}
+          <button onPointerDown={() => router.push('/kiosk/menu')}
             className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
@@ -413,7 +415,7 @@ export default function KioskDoctors() {
       {/* Department filter pills */}
       <div className="px-5 py-3 flex gap-2 overflow-x-auto border-b border-gray-100 dark:border-[#1a1a1a]">
         <button
-          onClick={() => setFilterDept('')}
+          onPointerDown={() => setFilterDept('')}
           className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
             filterDept === ''
               ? 'bg-[#003d73] text-white'
@@ -425,7 +427,7 @@ export default function KioskDoctors() {
         {departments.map(dept => (
           <button
             key={dept}
-            onClick={() => setFilterDept(dept)}
+            onPointerDown={() => setFilterDept(dept)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
               filterDept === dept
                 ? 'bg-[#003d73] text-white'
@@ -472,7 +474,7 @@ export default function KioskDoctors() {
                     <p className="text-[10px] text-gray-400">{doctor.department.name} {doctor.room_number && `· Room ${doctor.room_number}`}</p>
                   </div>
                   <button
-                    onClick={() => setBookingDoctor(doctor)}
+                    onPointerDown={() => setBookingDoctor(doctor)}
                     className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-black transition-all bg-[#003d73] hover:bg-[#002d57] text-white shadow-md shadow-blue-900/20 active:scale-95"
                   >
                     {doctor.status === 'AVAILABLE' ? bookLabel : requestLabel}

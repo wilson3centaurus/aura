@@ -183,7 +183,7 @@ function TrackContent() {
           />
           <button onClick={submitCode} className="w-full px-6 py-3 rounded-xl bg-[#003d73] text-white font-bold text-sm">Track Appointment</button>
         </div>
-        <button onClick={() => router.push('/kiosk/menu')}
+        <button onPointerDown={() => router.push('/kiosk/menu')}
           className="px-6 py-3 rounded-xl bg-[#003d73] text-white font-bold text-sm">
           Back to Menu
         </button>
@@ -223,7 +223,7 @@ function TrackContent() {
           <button onClick={() => fetchStatus()} className="px-5 py-2.5 rounded-xl bg-[#003d73] text-white font-bold text-sm">
             Retry
           </button>
-          <button onClick={() => router.push('/kiosk/menu')} className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-[#222] text-gray-600 dark:text-gray-400 font-bold text-sm">
+          <button onPointerDown={() => router.push('/kiosk/menu')} className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-[#222] text-gray-600 dark:text-gray-400 font-bold text-sm">
             Back
           </button>
         </div>
@@ -250,7 +250,7 @@ function TrackContent() {
       {/* Header */}
       <header className="bg-gradient-to-r from-[#003d73] to-[#0077cc] px-5 py-4">
         <div className="flex items-center gap-3 mb-3">
-          <button onClick={() => router.push('/kiosk/menu')}
+          <button onPointerDown={() => router.push('/kiosk/menu')}
             className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -402,12 +402,12 @@ function TrackContent() {
         <div className="flex flex-col gap-3 mt-6">
           <div className="flex gap-3">
             {appointment.status === 'DECLINED' && (
-              <button onClick={() => router.push('/kiosk/doctors')}
+              <button onPointerDown={() => router.push('/kiosk/doctors')}
                 className="flex-1 py-3.5 rounded-2xl bg-[#003d73] text-white font-black text-sm">
                 Book Another Doctor
               </button>
             )}
-            <button onClick={() => router.push('/kiosk/menu')}
+            <button onPointerDown={() => router.push('/kiosk/menu')}
               className="flex-1 py-3.5 rounded-2xl border border-gray-200 dark:border-[#222] text-gray-600 dark:text-gray-400 font-bold text-sm hover:bg-gray-50 dark:hover:bg-[#111] transition-colors">
               Back to Menu
             </button>

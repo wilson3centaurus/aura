@@ -30,8 +30,10 @@ function cleanDoctorName(value: string | null | undefined) {
 }
 
 function pickDoctorFromMessage(message: string, doctors: any[]) {
+  // Guard: eliminate any null/undefined entries that might survive .filter(Boolean)
+  const safeDoctors = doctors.filter((d: any) => d != null && typeof d === 'object')
   const normalized = message.toLowerCase()
-  const byName = doctors.filter((doctor: any) => {
+  const byName = safeDoctors.filter((doctor: any) => {
     const fullName = String(doctor.name || '').toLowerCase()
     const bareName = fullName.replace(/^dr\.?\s+/, '')
     return fullName && (normalized.includes(fullName) || normalized.includes(bareName))
@@ -39,7 +41,7 @@ function pickDoctorFromMessage(message: string, doctors: any[]) {
   if (byName.length === 1) return { selectedDoctor: byName[0], matches: byName }
   if (byName.length > 1) return { selectedDoctor: null, matches: byName }
 
-  const byDepartmentOrSpecialty = doctors.filter((doctor: any) => {
+  const byDepartmentOrSpecialty = safeDoctors.filter((doctor: any) => {
     const department = String(doctor.department || '').toLowerCase()
     const specialty = String(doctor.specialty || '').toLowerCase()
     return (department && normalized.includes(department)) || (specialty && normalized.includes(specialty))
@@ -96,23 +98,27 @@ export async function POST(request: NextRequest) {
       .join('\n')
 
     async function loadNormalizedDoctors() {
-      const doctorsRes = await fetch(new URL('/api/doctors', request.url), { cache: 'no-store' })
-      const doctorsData = doctorsRes.ok ? await doctorsRes.json() : []
-      return (Array.isArray(doctorsData) ? doctorsData : [])
-        .map((doctor: any) => {
-          if (!doctor || typeof doctor !== 'object' || doctor.status === 'OFFLINE') return null
-          const departmentSource = Array.isArray(doctor.department) ? doctor.department[0] : doctor.department
-          const userSource = Array.isArray(doctor.user) ? doctor.user[0] : doctor.user
-          return {
-            id: doctor.id,
-            name: cleanDoctorName(userSource?.name ?? 'Unknown'),
-            specialty: doctor.specialty,
-            department: departmentSource?.name ?? 'General',
-            room: doctor.room_number,
-            status: doctor.status,
-          }
-        })
-        .filter(Boolean)
+      try {
+        const doctorsRes = await fetch(new URL('/api/doctors', request.url), { cache: 'no-store' })
+        const doctorsData = doctorsRes.ok ? await doctorsRes.json() : []
+        return (Array.isArray(doctorsData) ? doctorsData : [])
+          .map((doctor: any) => {
+            if (!doctor || typeof doctor !== 'object' || doctor.status === 'OFFLINE') return null
+            const departmentSource = Array.isArray(doctor.department) ? doctor.department[0] : (doctor.department ?? null)
+            const userSource = Array.isArray(doctor.user) ? doctor.user[0] : (doctor.user ?? null)
+            return {
+              id: doctor.id ?? '',
+              name: cleanDoctorName(userSource?.name ?? 'Unknown'),
+              specialty: doctor.specialty ?? 'General',
+              department: departmentSource?.name ?? doctor.department_name ?? 'General',
+              room: doctor.room_number ?? null,
+              status: doctor.status ?? 'OFFLINE',
+            }
+          })
+          .filter((d: any): d is NonNullable<typeof d> => d != null && !!d.id)
+      } catch {
+        return []
+      }
     }
 
     async function createAppointmentRecord(details: { doctorId: string; patientName: string; patientPhone?: string | null; symptoms?: string | null }) {
@@ -205,7 +211,8 @@ Rules:
 7. NEVER output raw function call tags like <function=...> in your reply text. Use the proper tool mechanism — never type function syntax in your response.
 8. When listing doctors, mention their name, specialty, and department conversationally — never dump raw IDs or JSON.
 9. If the patient asks about bathrooms, toilets, restrooms, or washrooms, treat those as the same destination.
-10. If the patient wants a booking, guide them like a human receptionist: ask what they are feeling, suggest suitable doctors, then ask them to confirm their choice clearly.`
+11. For general "I'm sick" or symptom-only messages where the patient has NOT asked to book, respond conversationally first — give a warm, caring reply and then ask if they'd like to see a doctor. Only call list_doctors immediately if the patient explicitly says they want to book or see a doctor.
+12. If no exact specialty or department matches what the patient described, still show the available doctors list — never tell the patient there are no doctors when there are doctors on duty.`
 
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -243,6 +250,7 @@ Rules:
               department: { type: 'string', description: 'Filter by department name e.g. "Maternity", "Surgery"' },
               specialty: { type: 'string', description: 'Filter by doctor specialty e.g. "Orthopedics", "Pediatrics"' },
             },
+            required: [],
           },
         },
       },
@@ -302,6 +310,58 @@ Rules:
     const shouldHandleBooking = wantsBooking || !!bookingState || !!previousDoctorsList
     if (shouldHandleBooking) {
       const doctors = await loadNormalizedDoctors()
+
+      // ── Stage 0: user just said "book" with no symptoms yet — ask what they feel ──
+      // Only triggers on first booking message when no booking state exists and no symptoms mentioned
+      const hasSymptomsInMessage = /pain|fever|cough|headache|vomit|diarr|asthm|diabet|injur|pregnant|breath|rash|chest|stomach|back|ear|eye|throat|dizz|faint|swollen|wound|burn|bleed|cancer|mental|anxiety|depress/i.test(normalizedMessage)
+      if (wantsBooking && !bookingState && !previousDoctorsList && !hasSymptomsInMessage) {
+        return NextResponse.json({
+          reply: "Sure, I can help you book. What are you feeling today? Tell me your symptoms or what is bothering you, and I will find the right doctor for you.",
+          action: { type: 'BOOKING_PROGRESS', stage: 'ASK_CHIEF_COMPLAINT' },
+        })
+      }
+
+      // ── Stage 0b: received chief complaint — filter doctors by symptom keywords ──
+      if (bookingState?.stage === 'ASK_CHIEF_COMPLAINT') {
+        const complaint = String(message).trim()
+        if (complaint.length < 3) {
+          return NextResponse.json({
+            reply: 'Just give me a quick description — even one word like "headache" or "chest pain" is fine.',
+            action: bookingState,
+          })
+        }
+        // Attempt symptom → specialty matching for smarter filtering
+        const complaintLower = complaint.toLowerCase()
+        const SYMPTOM_SPECIALTY_MAP: Array<[RegExp, string[]]> = [
+          [/asthm|breath|lung|chest|wheez/i, ['pulmonology', 'internal medicine', 'general']],
+          [/heart|cardiac|blood pressure|hypertension/i, ['cardiology', 'internal medicine']],
+          [/child|baby|infant|paedia|kid/i, ['paediatrics', 'pediatrics', 'general']],
+          [/pregnant|maternity|labour|labor|antenatal/i, ['maternity', 'obstetrics', 'gynaecology']],
+          [/mental|anxiety|depress|stress|psych/i, ['psychiatry', 'psychology', 'mental health']],
+          [/eye|vision|blind/i, ['ophthalmology', 'eye']],
+          [/ear|hearing|deaf/i, ['ent', 'ear']],
+          [/tooth|dental|jaw|mouth/i, ['dental', 'dentistry']],
+          [/bone|fracture|joint|ortho/i, ['orthopaedics', 'orthopedics']],
+          [/skin|rash|itch/i, ['dermatology']],
+          [/sugar|diabet/i, ['endocrinology', 'internal medicine', 'general']],
+          [/stomach|diarr|vomit|bowel|gastro/i, ['gastroenterology', 'internal medicine', 'general']],
+          [/surg|operation|appendix/i, ['surgery', 'general surgery']],
+        ]
+        let filteredDoctors = doctors
+        for (const [pattern, specialties] of SYMPTOM_SPECIALTY_MAP) {
+          if (pattern.test(complaintLower)) {
+            const matched = doctors.filter((d: any) =>
+              d != null && specialties.some(s => String(d.specialty || '').toLowerCase().includes(s) || String(d.department || '').toLowerCase().includes(s))
+            )
+            if (matched.length > 0) { filteredDoctors = matched; break }
+          }
+        }
+        const doctorList = filteredDoctors.length > 0 ? filteredDoctors : doctors
+        return NextResponse.json({
+          reply: `I see — ${complaint}. Here are the doctors who can help you. Just say the name of the one you would like to book with.`,
+          action: { type: 'DOCTORS_LIST', doctors: doctorList, _complaint: complaint },
+        })
+      }
 
       if (bookingState?.stage === 'ASK_NAME' && bookingState.doctor) {
         const patientName = String(message).trim()
@@ -395,7 +455,21 @@ Rules:
       'pharmacy', 'toilet', 'toilets', 'bathroom', 'restroom', 'washroom', 'laboratory', 'lab',
       'radiology', 'emergency', 'maternity', 'chapel', 'cafeteria', 'parking', 'main entrance', 'outpatient',
     ]
-    const matchedLocationTerm = directLocationTerms.find(term => normalizedMessage.includes(term))
+    // Fuzzy regex patterns handle misspellings and alternate phrasings that substring-match misses
+    const FUZZY_LOCATION_PATTERNS: Array<[RegExp, string]> = [
+      [/\bph\w*r\w*c|\bpharm|\bdispensar/i, 'pharmacy'],   // pharmacy, phamarcy, pharmarcy, dispensary
+      [/laborator|labora/i, 'laboratory'],
+      [/radiolog|x-?ray|xray/i, 'radiology'],
+      [/emergen/i, 'emergency'],
+      [/materni|antenatal/i, 'maternity'],
+      [/cafeter|canteen/i, 'cafeteria'],
+    ]
+    let matchedLocationTerm: string | undefined = directLocationTerms.find(term => normalizedMessage.includes(term))
+    if (!matchedLocationTerm && /where|direction|locat|find|take me|show me/i.test(normalizedMessage)) {
+      for (const [pattern, canonical] of FUZZY_LOCATION_PATTERNS) {
+        if (pattern.test(normalizedMessage)) { matchedLocationTerm = canonical; break }
+      }
+    }
     if ((/where|direction|locat|find|take me|show me/i.test(normalizedMessage) || matchedLocationTerm) && matchedLocationTerm) {
       const searchTerms = matchedLocationTerm.match(/toilet|bathroom|restroom|washroom/)
         ? ['toilet', 'toilets', 'bathroom', 'restroom', 'washroom']
@@ -421,14 +495,31 @@ Rules:
       }
     }
 
-    let aiResponse = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: chatMessages,
-      tools,
-      tool_choice: 'auto',
-      max_tokens: 300,
-      temperature: 0.9,
-    })
+    // temperature: 0.3 — tool calls require low temperature for deterministic JSON output.
+    // High temperature (0.9) causes Groq to reject with 400 "Failed to call a function".
+    let aiResponse: any
+    try {
+      aiResponse = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: chatMessages,
+        tools,
+        tool_choice: 'auto',
+        max_tokens: 300,
+        temperature: 0.3,
+      })
+    } catch (toolErr: any) {
+      // Groq returns 400 when the model generates malformed function-call JSON.
+      // Retry without tool definitions — the model gives a plain conversational reply.
+      const isFnCallErr = toolErr?.status === 400 || String(toolErr?.message || '').toLowerCase().includes('failed to call')
+      if (!isFnCallErr) throw toolErr
+      console.warn('Tool call failed (400) — retrying without tools:', toolErr?.message)
+      aiResponse = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: chatMessages,
+        max_tokens: 300,
+        temperature: 0.7,
+      })
+    }
 
     // ── Reusable tool executor ──
     async function executeTool(name: string, args: any): Promise<{ result: string; action: any | null }> {
@@ -493,6 +584,7 @@ Rules:
         const requestedDepartment = String(args.department || '').trim().toLowerCase()
         const requestedSpecialty = String(args.specialty || '').trim().toLowerCase()
         const filtered = docs.filter((doctor: any) => {
+          if (!doctor) return false
           const matchesDepartment = !requestedDepartment
             || String(doctor.department || '').toLowerCase().includes(requestedDepartment)
           const matchesSpecialty = !requestedSpecialty
@@ -500,10 +592,23 @@ Rules:
           return matchesDepartment && matchesSpecialty
         })
 
-        if (filtered.length) {
-          return { result: `Available doctors:\n${filtered.map((doctor: any) => `- Dr. ${doctor.name} (ID: ${doctor.id}) — ${doctor.specialty}, ${doctor.department}, Room ${doctor.room ?? 'TBD'}, Status: ${doctor.status}`).join('\n')}\n\nAsk the patient which doctor they'd like to book with.`, action: { type: 'DOCTORS_LIST', doctors: filtered.map((doctor: any) => ({ id: doctor.id, name: doctor.name, specialty: doctor.specialty, department: doctor.department, room: doctor.room, status: doctor.status })) } }
+        // If the specific filter found nobody, fall back to ALL available doctors.
+        // Never tell the patient "no doctors found" when there are doctors on duty —
+        // show them all and let them choose.
+        const doctorList = filtered.length > 0 ? filtered : docs
+
+        if (doctorList.length) {
+          const hasFilter = requestedDepartment || requestedSpecialty
+          const preamble = filtered.length === 0 && hasFilter
+            ? `No exact match for the requested specialty or department, but here are all available doctors. Present them and let the patient pick:`
+            : `Available doctors:`
+          return {
+            result: `${preamble}\n${doctorList.map((doctor: any) => `- Dr. ${doctor.name} (ID: ${doctor.id}) — ${doctor.specialty}, ${doctor.department}, Room ${doctor.room ?? 'TBD'}, Status: ${doctor.status}`).join('\n')}\n\nAsk the patient which doctor they'd like to book with.`,
+            action: { type: 'DOCTORS_LIST', doctors: doctorList.map((doctor: any) => ({ id: doctor.id, name: doctor.name, specialty: doctor.specialty, department: doctor.department, room: doctor.room, status: doctor.status })) },
+          }
         }
-        return { result: 'No doctors found matching that criteria. Suggest the patient try a different department or check at reception.', action: null }
+        // Truly no doctors on duty at all
+        return { result: 'No doctors are currently on duty. Advise the patient to check at reception or come back later.', action: null }
       }
       if (name === 'book_appointment') {
         const { appointment: appt, error: apptErr } = await createAppointmentRecord({
@@ -516,7 +621,7 @@ Rules:
           const drName = cleanDoctorName((appt.doctor as any)?.user?.name ?? 'your doctor')
           return { result: `Appointment booked! Code: ${appt.qr_code}. Doctor: Dr. ${drName}. Scheduled: ${new Date(appt.scheduled_at).toLocaleString()}. Tell the patient to remember their code ${appt.qr_code} for tracking.`, action: { type: 'BOOKING_CONFIRMED', code: appt.qr_code, doctor: drName, time: appt.scheduled_at } }
         }
-        return { result: `Failed to book: ${apptErr?.message || 'Unknown error'}. Suggest trying again or visiting reception.`, action: null }
+        return { result: `Failed to book: ${apptErr || 'Unknown error'}. Suggest trying again or visiting reception.`, action: null }
       }
       if (name === 'search_web') {
         try {
@@ -556,12 +661,33 @@ Rules:
             ? 'These are the doctors available right now. Tell me which doctor or department you want.'
             : action?.type === 'BOOKING_CONFIRMED'
               ? `Your appointment is booked. Your code is ${action.code}.`
-              : toolResult
+              : null // no action — let the AI produce a natural reply from the tool result below
 
-      aiResponse = {
-        choices: [{ message: { content: fallbackReply } }],
-      } as any
-    }
+      if (fallbackReply !== null) {
+        // We have a deterministic reply — skip second AI call
+        aiResponse = { choices: [{ message: { content: fallbackReply } }] } as any
+      } else {
+        // Tool returned data but no UI action (e.g. web search, or truly no doctors).
+        // Feed the tool result back to the model so it writes a natural conversational reply
+        // instead of exposing raw internal strings to the patient.
+        const followUpMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+          ...chatMessages,
+          { role: 'assistant', content: null, tool_calls: [{ id: call.id, type: 'function', function: { name: call.function.name, arguments: call.function.arguments } }] } as any,
+          { role: 'tool', tool_call_id: call.id, content: toolResult } as any,
+        ]
+        try {
+          const naturalResp = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: followUpMessages,
+            max_tokens: 250,
+            temperature: 0.7,
+          })
+          aiResponse = naturalResp
+        } catch {
+          aiResponse = { choices: [{ message: { content: toolResult } }] } as any
+        }
+      }
+    } // end if (toolCalls?.length)
 
     const rawReply = aiResponse.choices[0]?.message?.content?.trim() || fallbackReply || "I'm here to help. What do you need today?"
 

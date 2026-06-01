@@ -258,7 +258,7 @@ Main complaint: ${symptoms}`,
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
         <button
-          onClick={() => step === 'category' ? router.push('/kiosk/menu') : setStep(step === 'details' ? 'category' : 'details')}
+          onPointerDown={() => step === 'category' ? router.push('/kiosk/menu') : setStep(step === 'details' ? 'category' : 'details')}
           className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors"
         >
           <FaChevronLeft size={14} />
@@ -346,7 +346,7 @@ Main complaint: ${symptoms}`,
                 ].map(opt => {
                   const Icon = opt.icon
                   return (
-                    <button key={opt.v} onClick={() => setDuration(opt.v)}
+                    <button key={opt.v} onPointerDown={() => setDuration(opt.v)}
                       className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all ${
                         duration === opt.v
                           ? 'bg-blue-600 text-white shadow-md'
@@ -365,7 +365,7 @@ Main complaint: ${symptoms}`,
               </label>
               <div className="flex flex-wrap gap-2">
                 {additionalOptions.map(s => (
-                  <button key={s} onClick={() => toggleSymptom(s)}
+                  <button key={s} onPointerDown={() => toggleSymptom(s)}
                     className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
                       additionalSymptoms.includes(s)
                         ? 'bg-blue-600 text-white'
@@ -451,28 +451,28 @@ Main complaint: ${symptoms}`,
             {/* Action buttons */}
             <div className="flex gap-3">
               {result.urgency === 'EMERGENCY' || result.urgency === 'URGENT' ? (
-                <button onClick={() => router.push('/kiosk/doctors')}
+                <button onPointerDown={() => router.push('/kiosk/doctors')}
                   className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-95 transition-all">
                   <FaUserDoctor size={16} /> Find a Doctor Now
                 </button>
               ) : result.goToPharmacy ? (
                 <>
-                  <button onClick={() => router.push('/kiosk/facilities')}
+                  <button onPointerDown={() => router.push('/kiosk/facilities')}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 active:scale-95 transition-all">
                     <FaStore size={14} /> Find Pharmacy
                   </button>
-                  <button onClick={() => router.push('/kiosk/doctors')}
+                  <button onPointerDown={() => router.push('/kiosk/doctors')}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-95 transition-all">
                     <FaUserDoctor size={14} /> See a Doctor
                   </button>
                 </>
               ) : (
-                <button onClick={() => router.push('/kiosk/doctors')}
+                <button onPointerDown={() => router.push('/kiosk/doctors')}
                   className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:scale-95 transition-all">
                   <FaUserDoctor size={16} /> Find a Doctor
                 </button>
               )}
-              <button onClick={() => router.push('/kiosk/menu')}
+              <button onPointerDown={() => router.push('/kiosk/menu')}
                 className="px-6 py-3.5 rounded-2xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold hover:bg-gray-300 dark:hover:bg-gray-600 active:scale-95 transition-all">
                 Menu
               </button>

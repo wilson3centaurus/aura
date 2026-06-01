@@ -2,6 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\XO\\.claude\\projects\\c--Users-XO-Desktop-aura\\memory"
     ]
   }
 }

@@ -26,7 +26,7 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
   const streamRef   = useRef<MediaStream | null>(null)
 
   const [showGreeting, setShowGreeting] = useState(false)
-  const [wasPresent, setWasPresent]     = useState(false)
+  const wasPresent = useRef(false)
   const [greeting]  = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)])
 
   // Flag — read env at module level to avoid reading in render
@@ -75,8 +75,8 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
         if (motionCount.current >= MOTION_DEBOUNCE) {
           const idleSeconds = Date.now() - lastActive.current
           lastActive.current = Date.now()
-          if (!wasPresent) {
-            setWasPresent(true)
+          if (!wasPresent.current) {
+            wasPresent.current = true
             if (idleSeconds > 8_000) {
               setShowGreeting(true)
               setTimeout(() => setShowGreeting(false), 5000)
@@ -90,7 +90,7 @@ export default function PresenceDetector({ enabled = true }: { enabled?: boolean
       }
     }
     prevData.current = new Uint8ClampedArray(imgData)
-  }, [wasPresent, pathname, router])
+  }, [pathname, router])
 
   const detectRef = useRef(detectMotion)
   useEffect(() => { detectRef.current = detectMotion }, [detectMotion])

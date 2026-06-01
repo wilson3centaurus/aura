@@ -26,6 +26,7 @@ export default function KioskVisit() {
   const [step, setStep] = useState<'form' | 'confirmed'>('form')
   const [form, setForm] = useState<VisitorForm>({ name: '', phone: '', idNumber: '' })
   const [formError, setFormError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; idNumber?: string }>({})
   const [confirming, setConfirming] = useState(false)
   const [wardInfo, setWardInfo] = useState<any | null>(null)
   const [showQR, setShowQR] = useState(false)
@@ -58,6 +59,7 @@ export default function KioskVisit() {
     setStep('form')
     setForm({ name: '', phone: '', idNumber: '' })
     setFormError('')
+    setFieldErrors({})
     setWardInfo(null)
     setShowQR(false)
     setQrDataUrl('')
@@ -66,9 +68,19 @@ export default function KioskVisit() {
   const closeModal = () => setSelectedPatient(null)
 
   const handleConfirm = async () => {
-    if (!form.name.trim()) { setFormError('Please enter your full name.'); return }
-    if (!form.phone.trim()) { setFormError('Please enter your phone number.'); return }
-    if (!form.idNumber.trim()) { setFormError('Please enter your ID/Passport number.'); return }
+    const errs: { name?: string; phone?: string; idNumber?: string } = {}
+    if (form.name.trim().length < 3) errs.name = 'Full name is required (at least 3 characters).'
+    if (!form.phone.trim()) {
+      errs.phone = 'Phone number is required.'
+    } else if (!/^\+?[0-9\s\-()]{7,15}$/.test(form.phone.trim())) {
+      errs.phone = 'Phone format looks invalid (e.g. 0771 234 567).'
+    }
+    if (form.idNumber.trim().length < 5) errs.idNumber = 'National ID or Passport number is required.'
+    setFieldErrors(errs)
+    if (Object.keys(errs).length > 0) {
+      setFormError('Please fix the fields highlighted below.')
+      return
+    }
     setFormError('')
     setConfirming(true)
 
@@ -112,7 +124,7 @@ export default function KioskVisit() {
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
         <button
-          onClick={() => router.push('/kiosk/menu')}
+          onPointerDown={() => router.push('/kiosk/menu')}
           className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors"
         >
           <FaChevronLeft size={14} />
@@ -229,7 +241,7 @@ export default function KioskVisit() {
                   {/* Visitor Name */}
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
-                      Your Full Name
+                      Your Full Name *
                     </label>
                     <div className="relative">
                       <FaUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
@@ -237,16 +249,17 @@ export default function KioskVisit() {
                         type="text"
                         placeholder="e.g. John Moyo"
                         value={form.name}
-                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setFieldErrors(p => ({ ...p, name: undefined })) }}
+                        className={`w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors ${fieldErrors.name ? 'border-red-400 dark:border-red-500 bg-red-50 dark:bg-red-950/20' : 'border-gray-200 dark:border-gray-700'}`}
                       />
                     </div>
+                    {fieldErrors.name && <p className="mt-1.5 text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">⚠ {fieldErrors.name}</p>}
                   </div>
 
                   {/* Phone */}
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
-                      Phone Number
+                      Phone Number *
                     </label>
                     <div className="relative">
                       <FaPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
@@ -254,16 +267,17 @@ export default function KioskVisit() {
                         type="tel"
                         placeholder="e.g. 0771 234 567"
                         value={form.phone}
-                        onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        onChange={e => { setForm(f => ({ ...f, phone: e.target.value })); setFieldErrors(p => ({ ...p, phone: undefined })) }}
+                        className={`w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors ${fieldErrors.phone ? 'border-red-400 dark:border-red-500 bg-red-50 dark:bg-red-950/20' : 'border-gray-200 dark:border-gray-700'}`}
                       />
                     </div>
+                    {fieldErrors.phone && <p className="mt-1.5 text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">⚠ {fieldErrors.phone}</p>}
                   </div>
 
                   {/* ID Number */}
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
-                      National ID / Passport Number
+                      National ID / Passport Number *
                     </label>
                     <div className="relative">
                       <FaIdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
@@ -271,22 +285,47 @@ export default function KioskVisit() {
                         type="text"
                         placeholder="e.g. 63-123456 A00"
                         value={form.idNumber}
-                        onChange={e => setForm(f => ({ ...f, idNumber: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        onChange={e => { setForm(f => ({ ...f, idNumber: e.target.value })); setFieldErrors(p => ({ ...p, idNumber: undefined })) }}
+                        className={`w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors ${fieldErrors.idNumber ? 'border-red-400 dark:border-red-500 bg-red-50 dark:bg-red-950/20' : 'border-gray-200 dark:border-gray-700'}`}
                       />
+                    </div>
+                    {fieldErrors.idNumber && <p className="mt-1.5 text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">⚠ {fieldErrors.idNumber}</p>}
+                  </div>
+
+                  {/* Validation checklist */}
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5 dark:border-blue-900/30 dark:bg-blue-950/20">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-700 dark:text-blue-300 mb-2">Validation Checklist</p>
+                    <div className="space-y-1.5 text-xs">
+                      {[
+                        { label: 'Full Name', ok: form.name.trim().length >= 3 },
+                        { label: 'Phone Number', ok: !!form.phone.trim() && /^\+?[0-9\s\-()]{7,15}$/.test(form.phone.trim()) },
+                        { label: 'National ID / Passport', ok: form.idNumber.trim().length >= 5 },
+                      ].map(({ label, ok }) => (
+                        <div key={label} className="flex items-center justify-between gap-3">
+                          <span className="text-blue-900 dark:text-blue-100">{label}</span>
+                          <span className={`font-black text-[10px] px-1.5 py-0.5 rounded-md ${ok ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
+                            {ok ? '✓ OK' : '✗ Required'}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   {formError && (
-                    <p className="text-red-600 text-sm font-medium">{formError}</p>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+                      <span className="text-red-500 text-sm">⚠</span>
+                      <p className="text-red-600 dark:text-red-400 text-xs font-semibold">{formError}</p>
+                    </div>
                   )}
 
                   <button
                     onClick={handleConfirm}
-                    disabled={confirming}
+                    disabled={confirming || form.name.trim().length < 3 || !form.phone.trim() || form.idNumber.trim().length < 5}
                     className="w-full py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50"
                   >
-                    {confirming ? 'Confirming…' : <>Confirm Details <FaArrowRight size={12} /></>}
+                    {confirming ? (
+                      <><span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Confirming…</>
+                    ) : <>Confirm Details <FaArrowRight size={12} /></>}
                   </button>
                 </>
               ) : (

@@ -83,7 +83,7 @@ export default function KioskMenu() {
       {/* ── Header ── */}
       <header className="hero-gradient px-4 py-3 flex items-center justify-between shadow-lg flex-shrink-0">
         <button
-          onClick={() => router.push('/kiosk')}
+          onPointerDown={() => router.push('/kiosk')}
           className="flex items-center gap-1.5 text-white/80 hover:text-white text-sm font-medium transition-colors"
         >
           <FaChevronLeft size={12} />

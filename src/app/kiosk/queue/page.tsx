@@ -70,7 +70,7 @@ export default function KioskQueue() {
       {/* Header */}
       <header className="hero-gradient px-5 py-4 flex items-center gap-3 shadow-lg">
         <button
-          onClick={() => router.push('/kiosk/menu')}
+          onPointerDown={() => router.push('/kiosk/menu')}
           className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors"
         >
           <FaChevronLeft size={14} />
