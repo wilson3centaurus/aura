@@ -112,16 +112,16 @@ export default function KioskWelcome() {
 
         {/* Language grid */}
         <div className="flex-1 flex flex-col px-3 py-2 min-w-0">
-          <div className="grid grid-cols-4 gap-2 content-start">
+          <div className="grid grid-cols-4 grid-rows-4 gap-2 flex-1 h-full">
             {LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
                 onPointerDown={() => selectLanguage(lang.code)}
-                className="flex flex-col items-start px-3 py-3 rounded-2xl bg-white dark:bg-[#111] border-2 border-gray-200 dark:border-[#222] hover:border-[#003d73] dark:hover:border-blue-600 active:scale-[0.96] transition-all duration-150 min-h-[68px]"
+                className="flex flex-col items-start px-4 py-4 rounded-2xl bg-white dark:bg-[#111] border-2 border-gray-200 dark:border-[#222] hover:border-[#003d73] dark:hover:border-blue-600 active:scale-[0.96] transition-all duration-150 w-full h-full"
               >
-                <p className="text-sm font-black text-gray-900 dark:text-white leading-tight">{lang.nativeName}</p>
+                <p className="text-base font-black text-gray-900 dark:text-white leading-tight">{lang.nativeName}</p>
                 {lang.nativeName !== lang.name && (
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium leading-tight mt-0.5">{lang.name}</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 font-medium leading-tight mt-1">{lang.name}</p>
                 )}
               </button>
             ))}
