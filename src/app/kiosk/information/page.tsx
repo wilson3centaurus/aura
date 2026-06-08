@@ -6,7 +6,7 @@ import { FaChevronLeft, FaCreditCard, FaBed, FaBuilding, FaUserDoctor } from 're
 import {
   MdInfo, MdAttachMoney, MdAccessTime, MdPhone,
   MdEmail, MdLocationOn, MdLocalHospital, MdEmergency,
-  MdGroups, MdMedicalServices, MdStar,
+  MdGroups, MdMedicalServices, MdStar, MdApartment, MdBarChart,
 } from 'react-icons/md'
 import { useBatchTranslation } from '@/components/useBatchTranslation'
 import { useKioskLanguage } from '@/components/useKioskLanguage'
@@ -95,12 +95,14 @@ function InformationContent() {
     'Fees and Costs',
     'Visiting Hours',
     'Contacts',
+    'Facilities',
+    'Capacity & Stats',
     'Loading...',
     'Payment Methods: Cash, EcoCash, and Medical Aid accepted.',
     'No information available for this category yet.',
   ], language)
 
-  const [pageTitle, pageSubtitle, tabGeneralLabel, tabFeesLabel, tabVisitingLabel, tabContactLabel, loadingLabel, paymentMethodsLabel, noInfoLabel] = translatedLabels
+  const [pageTitle, pageSubtitle, tabGeneralLabel, tabFeesLabel, tabVisitingLabel, tabContactLabel, tabFacilitiesLabel, tabCapacityLabel, loadingLabel, paymentMethodsLabel, noInfoLabel] = translatedLabels
 
   useEffect(() => {
     Promise.all([
@@ -116,10 +118,12 @@ function InformationContent() {
   }, [])
 
   const tabs = [
-    { id: 'general',  label: tabGeneralLabel,  icon: MdInfo },
-    { id: 'fees',     label: tabFeesLabel,     icon: MdAttachMoney },
-    { id: 'visiting', label: tabVisitingLabel, icon: MdAccessTime },
-    { id: 'contact',  label: tabContactLabel,  icon: MdPhone },
+    { id: 'general',    label: tabGeneralLabel,    icon: MdInfo },
+    { id: 'fees',       label: tabFeesLabel,       icon: MdAttachMoney },
+    { id: 'visiting',   label: tabVisitingLabel,   icon: MdAccessTime },
+    { id: 'contact',    label: tabContactLabel,    icon: MdPhone },
+    { id: 'facilities', label: tabFacilitiesLabel, icon: MdApartment },
+    { id: 'capacity',   label: tabCapacityLabel,   icon: MdBarChart },
   ]
 
   const filteredInfo = activeTab === 'fees' ? [] : info.filter(i => i.category === activeTab)

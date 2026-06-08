@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { sendDoctorWelcomeEmail } from '@/lib/email'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { name, email, password, specialty, departmentId, roomNumber, phone } = await request.json()
+  const { name, email, password, rawPassword, specialty, departmentId, roomNumber, phone } = await request.json()
 
   if (!name || !email || !password || !specialty || !departmentId) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -78,6 +79,14 @@ export async function POST(request: NextRequest) {
     .single()
 
   if (docErr) return NextResponse.json({ error: docErr.message }, { status: 400 })
+
+  // Send welcome email (non-blocking — don't fail the request if email fails)
+  sendDoctorWelcomeEmail({
+    toEmail: email,
+    doctorName: name,
+    username: email,
+    password: rawPassword || password,
+  }).catch(console.error)
 
   return NextResponse.json(doctor, { status: 201 })
 }

@@ -8,7 +8,14 @@ export async function GET() {
     .order('name')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(medications)
+
+  // Map snake_case DB columns to camelCase for frontend
+  const mapped = (medications ?? []).map((m: Record<string, unknown>) => ({
+    ...m,
+    inStock: m.in_stock,
+    prescriptionRequired: m.prescription_required,
+  }))
+  return NextResponse.json(mapped)
 }
 
 export async function POST(request: NextRequest) {

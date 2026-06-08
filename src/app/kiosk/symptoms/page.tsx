@@ -1,12 +1,48 @@
 ﻿'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SYMPTOM_CATEGORIES } from '@/types'
 import { useBatchTranslation } from '@/components/useBatchTranslation'
 import { useKioskLanguage } from '@/components/useKioskLanguage'
-import { FaChevronLeft, FaClipboardList, FaUserDoctor, FaClock, FaCalendarDays, FaCalendarWeek, FaPills, FaStore } from 'react-icons/fa6'
-import { MdWarning, MdMedicalServices, MdCheckCircle } from 'react-icons/md'
+import { FaChevronLeft, FaClipboardList, FaUserDoctor, FaClock, FaCalendarDays, FaCalendarWeek, FaPills, FaStore, FaBell } from 'react-icons/fa6'
+import { MdWarning, MdMedicalServices, MdCheckCircle, MdPhoneInTalk } from 'react-icons/md'
+
+// Synthesised siren using Web Audio API — no audio file needed
+function useSiren() {
+  const ctxRef = useRef<AudioContext | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const playOneCycle = (ctx: AudioContext) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    gain.gain.setValueAtTime(0.8, ctx.currentTime)
+    // Sweep up
+    osc.frequency.setValueAtTime(500, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.6)
+    // Sweep down
+    osc.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 1.2)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.4)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 1.4)
+  }
+
+  const start = () => {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    ctxRef.current = ctx
+    playOneCycle(ctx)
+    intervalRef.current = setInterval(() => playOneCycle(ctx), 1500)
+  }
+
+  const stop = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    if (ctxRef.current) { ctxRef.current.close(); ctxRef.current = null }
+  }
+
+  return { start, stop }
+}
 
 type Step = 'category' | 'details' | 'result'
 
@@ -31,6 +67,35 @@ export default function KioskSymptoms() {
   const [otherText, setOtherText] = useState('')
   const [result, setResult] = useState<AssessmentResult | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [emergencyActive, setEmergencyActive] = useState(false)
+  const [alertSent, setAlertSent] = useState(false)
+  const siren = useSiren()
+
+  // Auto-trigger emergency alert when EMERGENCY result arrives
+  useEffect(() => {
+    if (result?.urgency === 'EMERGENCY') {
+      setEmergencyActive(true)
+      siren.start()
+    }
+    return () => { if (!result || result.urgency !== 'EMERGENCY') siren.stop() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result])
+
+  const dismissEmergency = () => {
+    setEmergencyActive(false)
+    siren.stop()
+  }
+
+  const sendStaffAlert = async () => {
+    try {
+      await fetch('/api/emergency-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symptoms: selectedCategory, severity, department: result?.department }),
+      })
+      setAlertSent(true)
+    } catch { setAlertSent(true) }
+  }
 
   const translatedLabels = useBatchTranslation([
     'Symptom Check',
@@ -480,6 +545,57 @@ Main complaint: ${symptoms}`,
           </div>
         )}
       </main>
+
+      {/* ── EMERGENCY OVERLAY ── triggered automatically when EMERGENCY urgency */}
+      {emergencyActive && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center p-6 animate-pulse-emergency"
+          style={{ background: 'rgba(220,38,38,0.97)' }}>
+          <style>{`
+            @keyframes flash-red {
+              0%, 100% { background: rgba(220,38,38,0.97); }
+              50%       { background: rgba(239,68,68,1); }
+            }
+            .animate-pulse-emergency { animation: flash-red 1s ease-in-out infinite; }
+          `}</style>
+
+          {/* Siren icon */}
+          <div className="w-28 h-28 rounded-full bg-white/20 flex items-center justify-center mb-6 ring-8 ring-white/30 animate-ping-slow">
+            <FaBell className="text-white text-6xl" />
+          </div>
+          <style>{`.animate-ping-slow { animation: ping 1s cubic-bezier(0,0,0.2,1) infinite; }`}</style>
+
+          <h1 className="text-white text-4xl font-black text-center mb-2">🚨 EMERGENCY</h1>
+          <p className="text-white/90 text-xl font-bold text-center mb-1">URGENT MEDICAL ATTENTION REQUIRED</p>
+          <p className="text-white/75 text-base text-center mb-8">
+            This patient needs immediate help.<br />
+            Please alert nearby medical staff now.
+          </p>
+
+          <div className="flex flex-col gap-3 w-full max-w-sm">
+            {!alertSent ? (
+              <button onPointerDown={sendStaffAlert}
+                className="flex items-center justify-center gap-3 w-full py-5 rounded-2xl bg-white text-red-700 font-black text-lg shadow-2xl active:scale-95 transition-all">
+                <MdPhoneInTalk size={24} /> Send Alert to Staff Now
+              </button>
+            ) : (
+              <div className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white/20 border-2 border-white">
+                <MdCheckCircle className="text-white text-2xl" />
+                <span className="text-white font-black text-base">Alert Sent — Staff Notified!</span>
+              </div>
+            )}
+
+            <button onPointerDown={() => router.push('/kiosk/doctors')}
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white/20 border-2 border-white text-white font-bold text-base active:scale-95 transition-all">
+              <FaUserDoctor size={18} /> Find Emergency Doctor
+            </button>
+
+            <button onPointerDown={dismissEmergency}
+              className="text-white/60 text-sm text-center mt-2 underline">
+              Dismiss alarm (patient is stable)
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
