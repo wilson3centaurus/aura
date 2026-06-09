@@ -37,6 +37,17 @@ export async function POST(request: NextRequest) {
     }
 
     const clean = text.slice(0, 5000)
+    const warnings: string[] = []
+
+    function audioResponse(buffer: Buffer, contentType: string) {
+      const headers: Record<string, string> = {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-store',
+        'Content-Length': String(buffer.length),
+      }
+      if (warnings.length) headers['X-TTS-Warning'] = warnings.join(',')
+      return new NextResponse(buffer, { headers })
+    }
 
     // ── 1. ElevenLabs (best quality, multilingual) ──────────────────────────
     if (process.env.ELEVENLABS_API_KEY) {
@@ -56,12 +67,17 @@ export async function POST(request: NextRequest) {
         })
         if (elRes.ok) {
           const buffer = Buffer.from(await elRes.arrayBuffer())
-          return new NextResponse(buffer, {
-            headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'Content-Length': String(buffer.length) },
-          })
+          return audioResponse(buffer, 'audio/mpeg')
         }
-        console.warn('ElevenLabs TTS HTTP', elRes.status, '— trying Gemini')
+        if (elRes.status === 402) {
+          warnings.push('elevenlabs:quota_exceeded')
+          console.warn('ElevenLabs TTS HTTP 402 — quota exceeded, trying Gemini')
+        } else {
+          warnings.push(`elevenlabs:error_${elRes.status}`)
+          console.warn('ElevenLabs TTS HTTP', elRes.status, '— trying Gemini')
+        }
       } catch (elErr: any) {
+        warnings.push('elevenlabs:network_error')
         console.warn('ElevenLabs TTS error:', elErr?.message, '— trying Gemini')
       }
     }
@@ -88,13 +104,14 @@ export async function POST(request: NextRequest) {
           const b64  = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data as string | undefined
           if (b64) {
             const wav = pcmToWav(Buffer.from(b64, 'base64'))
-            return new NextResponse(wav, {
-              headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'Content-Length': String(wav.length) },
-            })
+            return audioResponse(wav, 'audio/wav')
           }
         }
+        if (gemRes.status === 402 || gemRes.status === 429) warnings.push(`gemini:quota_exceeded`)
+        else warnings.push(`gemini:error_${gemRes.status}`)
         console.warn('Gemini TTS HTTP', gemRes.status, '— trying OpenAI')
       } catch (gemErr: any) {
+        warnings.push('gemini:network_error')
         console.warn('Gemini TTS error:', gemErr?.message, '— trying OpenAI')
       }
     }
@@ -109,16 +126,23 @@ export async function POST(request: NextRequest) {
           speed: Math.min(Math.max(speed, 0.25), 4.0),
         })
         const buffer = Buffer.from(await mp3.arrayBuffer())
-        return new NextResponse(buffer, {
-          headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'Content-Length': String(buffer.length) },
-        })
+        return audioResponse(buffer, 'audio/mpeg')
       } catch (oaErr: any) {
+        const msg = String(oaErr?.message || '')
+        if (msg.includes('429') || msg.includes('quota') || msg.includes('insufficient_quota')) {
+          warnings.push('openai:quota_exceeded')
+        } else {
+          warnings.push('openai:error')
+        }
         console.warn('OpenAI TTS error:', oaErr?.message)
       }
     }
 
     // All TTS providers failed — client will use browser speechSynthesis
-    return NextResponse.json({ error: 'All TTS providers unavailable' }, { status: 503 })
+    return NextResponse.json(
+      { error: 'All TTS providers unavailable', warnings },
+      { status: 503, headers: warnings.length ? { 'X-TTS-Warning': warnings.join(',') } : {} },
+    )
   } catch (err: any) {
     console.error('TTS route error:', err?.message)
     return NextResponse.json({ error: 'TTS failed' }, { status: 500 })

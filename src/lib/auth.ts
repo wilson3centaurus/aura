@@ -25,3 +25,21 @@ export async function getSession() {
   if (!token) return null
   return verifyToken(token)
 }
+
+// Password reset tokens — 1-hour expiry, separate from session tokens
+export async function signResetToken(payload: { userId: string; email: string }) {
+  return new SignJWT({ ...payload, purpose: 'password-reset' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('1h')
+    .sign(secret)
+}
+
+export async function verifyResetToken(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, secret)
+    if (payload.purpose !== 'password-reset') return null
+    return payload as { userId: string; email: string; purpose: string }
+  } catch {
+    return null
+  }
+}

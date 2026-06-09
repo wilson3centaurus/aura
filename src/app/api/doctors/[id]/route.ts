@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/db'
+import bcrypt from 'bcryptjs'
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -29,10 +30,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params
   const body = await request.json()
 
-  // Update user fields if provided (name, email)
+  // Update user fields if provided (name, email, password)
   const userUpdate: Record<string, unknown> = {}
   if (body.name !== undefined) userUpdate.name = body.name
   if (body.email !== undefined) userUpdate.email = body.email
+  if (body.password !== undefined) {
+    userUpdate.password = await bcrypt.hash(body.password, 10)
+    userUpdate.password_changed = false  // force re-onboarding after admin reset
+  }
   if (Object.keys(userUpdate).length > 0) {
     const { data: docRow } = await supabase.from('doctors').select('user_id').eq('id', id).single()
     if (docRow) await supabase.from('users').update(userUpdate).eq('id', docRow.user_id)

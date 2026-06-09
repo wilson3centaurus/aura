@@ -1,14 +1,18 @@
 import nodemailer from 'nodemailer'
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
+function makeTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
+    requireTLS: true,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: { rejectUnauthorized: false },
+  })
+}
 
 export async function sendDoctorWelcomeEmail({
   toEmail,
@@ -124,6 +128,7 @@ export async function sendDoctorWelcomeEmail({
 `
 
   try {
+    const transporter = makeTransporter()
     await transporter.sendMail({
       from: `"AURA - ${hospitalName}" <${process.env.SMTP_USER}>`,
       to: toEmail,
@@ -133,6 +138,80 @@ export async function sendDoctorWelcomeEmail({
     return { success: true }
   } catch (err) {
     console.error('[Email] Failed to send welcome email:', err)
+    return { success: false, reason: String(err) }
+  }
+}
+
+export async function sendPasswordResetEmail({
+  toEmail,
+  doctorName,
+  resetLink,
+}: {
+  toEmail: string
+  doctorName: string
+  resetLink: string
+}) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.log('[Email] SMTP not configured — reset link:', resetLink)
+    return { success: false, reason: 'SMTP not configured' }
+  }
+
+  const hospitalName = process.env.NEXT_PUBLIC_HOSPITAL_NAME || 'Mutare Provincial Hospital'
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f7fb; margin: 0; padding: 20px; }
+    .container { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .header { background: linear-gradient(135deg, #0a4f3f 0%, #0d6e56 100%); padding: 32px; text-align: center; }
+    .header h1 { color: #fff; margin: 0; font-size: 20px; }
+    .header p  { color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 13px; }
+    .body { padding: 32px; }
+    .text { color: #4a5568; line-height: 1.6; font-size: 14px; margin-bottom: 20px; }
+    .btn { display: block; text-align: center; background: #0a4f3f; color: #fff !important; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: bold; font-size: 15px; margin: 24px 0; }
+    .link-box { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; word-break: break-all; font-family: monospace; font-size: 12px; color: #4a5568; }
+    .warning { background: #fffbeb; border: 1px solid #f6e05e; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #744210; margin-top: 20px; }
+    .footer { padding: 20px 32px; background: #f7fafc; border-top: 1px solid #e2e8f0; text-align: center; }
+    .footer p { font-size: 11px; color: #a0aec0; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏥 ${hospitalName}</h1>
+      <p>AURA Staff Portal — Password Reset</p>
+    </div>
+    <div class="body">
+      <p class="text">Hello <strong>${doctorName}</strong>,</p>
+      <p class="text">We received a request to reset your AURA Staff Portal password. Click the button below to set a new password. This link is valid for <strong>1 hour</strong>.</p>
+      <a href="${resetLink}" class="btn">Reset My Password</a>
+      <p class="text" style="font-size:12px;color:#718096;">If the button doesn't work, copy and paste this link into your browser:</p>
+      <div class="link-box">${resetLink}</div>
+      <div class="warning">⚠️ If you did not request a password reset, please ignore this email — your password will remain unchanged. Contact the administrator if you believe your account is at risk.</div>
+    </div>
+    <div class="footer">
+      <p>This link expires in 1 hour · ${hospitalName} · Do not reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>
+`
+
+  try {
+    const transporter = makeTransporter()
+    await transporter.sendMail({
+      from: `"AURA - ${hospitalName}" <${process.env.SMTP_USER}>`,
+      to: toEmail,
+      subject: `Reset your AURA password — ${hospitalName}`,
+      html,
+    })
+    return { success: true }
+  } catch (err) {
+    console.error('[Email] Failed to send reset email:', err)
     return { success: false, reason: String(err) }
   }
 }

@@ -57,6 +57,11 @@ function validateIdNumber(id: string) {
   return /^\d{2}-\d{6}[A-Za-z]\d{2}$/.test(id.trim())
 }
 
+// Convert ID to password: 71-2002414R42 → 712002414r42 (remove dash, lowercase)
+function idToPassword(id: string) {
+  return id.replace(/-/g, '').toLowerCase()
+}
+
 // Phone: 10 digits starting with 0 (Zimbabwe format 07XXXXXXXX)
 function validatePhone(phone: string) {
   return /^0\d{9}$/.test(phone.replace(/\s/g, ''))
@@ -108,6 +113,13 @@ export default function AdminDoctors() {
   const [deleteDoctor, setDeleteDoctor] = useState<Doctor | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Reset password
+  const [resetDoctor, setResetDoctor] = useState<Doctor | null>(null)
+  const [resetIdNumber, setResetIdNumber] = useState('')
+  const [resetSaving, setResetSaving] = useState(false)
+  const [resetError, setResetError] = useState('')
+  const [resetDone, setResetDone] = useState(false)
+
   // Impersonate
   const [impersonateDoctor, setImpersonateDoctor] = useState<Doctor | null>(null)
   const [impersonateKey, setImpersonateKey] = useState('')
@@ -153,7 +165,7 @@ export default function AdminDoctors() {
     const errors = validateForm(form)
     if (Object.keys(errors).length > 0) { setFormErrors(errors); return }
     setSaving(true)
-    const password = form.idNumber.trim().toLowerCase().replace(/\s+/g, '')
+    const password = idToPassword(form.idNumber.trim())
     try {
       const res = await fetch('/api/doctors', {
         method: 'POST',
@@ -239,7 +251,7 @@ export default function AdminDoctors() {
           setEditSaving(false)
           return
         }
-        payload.password = editForm.idNumber.trim().toLowerCase().replace(/\s+/g, '')
+        payload.password = idToPassword(editForm.idNumber.trim())
       }
       if (editForm.latitude !== '') payload.latitude = parseFloat(editForm.latitude)
       if (editForm.longitude !== '') payload.longitude = parseFloat(editForm.longitude)
@@ -266,6 +278,31 @@ export default function AdminDoctors() {
       loadData()
     } catch {}
     setDeleting(false)
+  }
+
+  const doResetPassword = async () => {
+    if (!resetDoctor || !resetIdNumber.trim()) return
+    if (!validateIdNumber(resetIdNumber)) {
+      setResetError('Invalid ID format. Use: 63-123456A78')
+      return
+    }
+    setResetSaving(true)
+    setResetError('')
+    try {
+      const newPassword = idToPassword(resetIdNumber.trim())
+      const res = await fetch(`/api/doctors/${resetDoctor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      })
+      if (res.ok) {
+        setResetDone(true)
+      } else {
+        const d = await res.json()
+        setResetError(d.error || 'Failed to reset password.')
+      }
+    } catch { setResetError('Network error.') }
+    setResetSaving(false)
   }
 
   const doImpersonate = async () => {
@@ -446,7 +483,7 @@ export default function AdminDoctors() {
                 <p className="text-[10px] text-gray-400 mt-1">Format: 2 digits – 6 digits – 1 letter – 2 digits (e.g. 63-123456A78)</p>
                 <FieldError msg={formErrors.idNumber} />
                 {form.idNumber && !formErrors.idNumber && validateIdNumber(form.idNumber) && (
-                  <FieldOk msg={`Valid ID · Password will be: ${form.idNumber.toLowerCase().replace(/\s+/g, '')}`} />
+                  <FieldOk msg={`Valid ID · Password will be: ${idToPassword(form.idNumber)}`} />
                 )}
               </div>
 
@@ -600,6 +637,12 @@ export default function AdminDoctors() {
                       <button onClick={() => openEdit(doc)}
                         className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all">
                         Edit
+                      </button>
+                      <button
+                        onClick={() => { setResetDoctor(doc); setResetIdNumber(''); setResetError(''); setResetDone(false) }}
+                        title="Reset password to ID number"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all">
+                        Reset PW
                       </button>
                       <button onClick={() => { setImpersonateDoctor(doc); setImpersonateKey(''); setImpersonateError('') }}
                         title="Login as this doctor"
@@ -758,6 +801,82 @@ export default function AdminDoctors() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetDoctor && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#141414] rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-gray-900 dark:text-white">Reset Password</h3>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{resetDoctor.user.name}</p>
+                </div>
+              </div>
+
+              {resetDone ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-center">
+                    <p className="text-2xl mb-2">✅</p>
+                    <p className="text-sm font-black text-emerald-800 dark:text-emerald-300">Password reset successfully</p>
+                    <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/70 mt-2">New password for {resetDoctor.user.name}:</p>
+                    <p className="text-base font-mono font-black text-emerald-800 dark:text-emerald-300 mt-1 bg-white dark:bg-[#0a0a0a] p-2 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                      {idToPassword(resetIdNumber)}
+                    </p>
+                    <p className="text-[10px] text-emerald-600/60 dark:text-emerald-400/50 mt-2">Share this securely with the doctor.</p>
+                  </div>
+                  <button onClick={() => setResetDoctor(null)}
+                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors">
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3">
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                      🔑 Enter the doctor&apos;s National ID number. Their password will be reset to the ID with the dash removed and all letters lowercased.
+                      <br /><strong className="mt-1 block">Example: 71-2002414R42 → 712002414r42</strong>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 uppercase font-bold mb-1.5">National ID Number</label>
+                    <input
+                      placeholder="71-2002414R42"
+                      value={resetIdNumber}
+                      onChange={e => { setResetIdNumber(e.target.value); setResetError('') }}
+                      onKeyDown={e => e.key === 'Enter' && doResetPassword()}
+                      className={`w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border text-sm text-gray-900 dark:text-white font-mono uppercase placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 ${resetError ? 'border-red-400' : 'border-gray-200 dark:border-[#333]'}`}
+                    />
+                    {resetError && <p className="text-[11px] text-red-500 mt-1">⚠ {resetError}</p>}
+                    {/* Live preview */}
+                    {resetIdNumber && validateIdNumber(resetIdNumber) && (
+                      <div className="mt-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase mb-0.5">New password will be:</p>
+                        <p className="text-sm font-mono font-black text-emerald-800 dark:text-emerald-300">{idToPassword(resetIdNumber)}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setResetDoctor(null)}
+                      className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-[#333] text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-colors">
+                      Cancel
+                    </button>
+                    <button onClick={doResetPassword} disabled={resetSaving || !resetIdNumber.trim()}
+                      className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold transition-colors disabled:opacity-50">
+                      {resetSaving ? 'Resetting...' : 'Reset Password'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

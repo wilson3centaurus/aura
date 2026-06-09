@@ -10,6 +10,13 @@ export default function DoctorLogin() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSending, setForgotSending] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotEmailSent, setForgotEmailSent] = useState(false)
+  const [forgotResetLink, setForgotResetLink] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -134,10 +141,20 @@ export default function DoctorLogin() {
               </div>
             </div>
 
+            <div className="flex justify-end -mt-1">
+              <button
+                type="button"
+                onClick={() => setShowForgot(true)}
+                className="text-xs text-emerald-700 dark:text-emerald-400 hover:underline font-medium"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-[#0a4f3f] hover:bg-[#093d31] text-white text-sm font-bold transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 mt-2"
+              className="w-full py-3 rounded-xl bg-[#0a4f3f] hover:bg-[#093d31] text-white text-sm font-bold transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -147,6 +164,166 @@ export default function DoctorLogin() {
               ) : 'Sign in to Dashboard'}
             </button>
           </form>
+
+          {/* Forgot Password Modal */}
+          {showForgot && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-[#141414] rounded-2xl w-full max-w-sm shadow-2xl">
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-emerald-700 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-gray-900 dark:text-white">Forgot Password?</h3>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Reset via email or use your default</p>
+                    </div>
+                    <button onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(''); setForgotResetLink(''); setForgotEmailSent(false); setCopied(false) }}
+                      className="ml-auto p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#222] transition-colors">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+
+                  {forgotSent ? (
+                    <div className="space-y-4">
+                      {forgotEmailSent ? (
+                        <div className="text-center py-4">
+                          <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center mx-auto mb-3">
+                            <svg className="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <p className="text-sm font-black text-gray-900 dark:text-white mb-1">Email sent!</p>
+                          <p className="text-[12px] text-gray-500 leading-relaxed">
+                            A reset link was sent to <strong>{forgotEmail}</strong>. Check your inbox and spam folder.
+                          </p>
+                          <p className="text-[11px] text-gray-400 mt-2">The link expires in 1 hour.</p>
+                        </div>
+                      ) : forgotResetLink ? (
+                        <div className="py-2">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-amber-700 dark:text-amber-400">Email delivery failed</p>
+                              <p className="text-[10px] text-gray-400">Use the link below to reset your password</p>
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-gray-500 mb-1.5 font-semibold">Your password reset link:</p>
+                          <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] font-mono text-[10px] text-gray-600 dark:text-gray-300 break-all leading-relaxed mb-2">
+                            {forgotResetLink}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(forgotResetLink)
+                              setCopied(true)
+                              setTimeout(() => setCopied(false), 2500)
+                            }}
+                            className="w-full py-2 rounded-xl bg-gray-100 dark:bg-[#222] hover:bg-gray-200 dark:hover:bg-[#333] text-gray-700 dark:text-gray-300 text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                          >
+                            {copied ? (
+                              <><svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
+                            ) : (
+                              <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy Link</>
+                            )}
+                          </button>
+                          <a
+                            href={forgotResetLink}
+                            className="mt-2 w-full py-2 rounded-xl bg-[#0a4f3f] hover:bg-[#093d31] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                          >
+                            Open Reset Page →
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-sm font-black text-gray-900 dark:text-white mb-1">Request received</p>
+                          <p className="text-[12px] text-gray-500 leading-relaxed">
+                            If <strong>{forgotEmail}</strong> is registered, a reset link has been sent.
+                          </p>
+                        </div>
+                      )}
+                      <button onClick={() => { setShowForgot(false); setForgotSent(false); setForgotEmail(''); setForgotResetLink(''); setForgotEmailSent(false); setCopied(false) }}
+                        className="w-full py-2.5 rounded-xl bg-[#0a4f3f] hover:bg-[#093d31] text-white text-sm font-bold transition-colors">
+                        Back to Login
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Default password hint */}
+                      <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30">
+                        <p className="text-[11px] font-bold text-blue-800 dark:text-blue-300 mb-1.5">Haven&apos;t changed your password yet?</p>
+                        <div className="flex items-center gap-2 font-mono text-xs">
+                          <span className="px-2 py-1 rounded bg-white dark:bg-[#0a0a0a] border border-blue-200 dark:border-blue-800 text-gray-700 dark:text-gray-300">71-2002414R42</span>
+                          <svg className="w-3 h-3 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                          <span className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 font-black">712002414r42</span>
+                        </div>
+                        <p className="text-[10px] text-blue-600/70 dark:text-blue-400/60 mt-1">Your ID without the dash, all lowercase</p>
+                      </div>
+
+                      {/* Email reset */}
+                      <div className="pt-1">
+                        <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Or send a reset link to your email</p>
+                        <input
+                          type="email"
+                          placeholder="Your registered email address"
+                          value={forgotEmail}
+                          onChange={e => setForgotEmail(e.target.value)}
+                          onKeyDown={async e => {
+                            if (e.key === 'Enter' && forgotEmail.trim()) {
+                              setForgotSending(true)
+                              try {
+                                const r = await fetch('/api/auth/forgot-password', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ email: forgotEmail }),
+                                })
+                                const d = await r.json()
+                                setForgotEmailSent(d.emailSent === true)
+                                if (d.resetLink) setForgotResetLink(d.resetLink)
+                              } finally {
+                                setForgotSending(false)
+                                setForgotSent(true)
+                              }
+                            }
+                          }}
+                          className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-[#333] text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <button
+                          disabled={!forgotEmail.trim() || forgotSending}
+                          onClick={async () => {
+                            setForgotSending(true)
+                            try {
+                              const r = await fetch('/api/auth/forgot-password', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: forgotEmail }),
+                              })
+                              const d = await r.json()
+                              setForgotEmailSent(d.emailSent === true)
+                              if (d.resetLink) setForgotResetLink(d.resetLink)
+                            } finally {
+                              setForgotSending(false)
+                              setForgotSent(true)
+                            }
+                          }}
+                          className="w-full mt-2 py-2.5 rounded-xl bg-[#0a4f3f] hover:bg-[#093d31] text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {forgotSending ? (
+                            <><span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Sending...</>
+                          ) : 'Send Reset Link'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-6 flex items-center justify-center gap-4 text-xs text-gray-400">
             <a href="/kiosk" className="hover:text-gray-600 dark:hover:text-gray-200 transition-colors">← Patient Kiosk</a>

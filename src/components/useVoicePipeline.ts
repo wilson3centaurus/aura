@@ -114,6 +114,13 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
       MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
       MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
 
+    function emitTtsWarning(warnings: string) {
+      try {
+        localStorage.setItem('tts-warning', JSON.stringify({ warnings, ts: Date.now() }))
+        window.dispatchEvent(new CustomEvent('tts-warning', { detail: { warnings } }))
+      } catch {}
+    }
+
     // Speak text: tries ElevenLabs/OpenAI TTS first (3 s timeout), falls back to browser speechSynthesis
     async function speakText(text: string): Promise<void> {
       try {
@@ -130,6 +137,8 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
         } finally {
           clearTimeout(ttsTimeout)
         }
+        const warning = ttsRes.headers.get('X-TTS-Warning')
+        if (warning) emitTtsWarning(warning)
         if (ttsRes.ok) {
           const url = URL.createObjectURL(await ttsRes.blob())
           return new Promise<void>(resolve => {
@@ -138,6 +147,9 @@ export function useVoicePipeline({ language = 'en' }: { language?: string } = {}
             a.onerror = () => { URL.revokeObjectURL(url); resolve() }
             a.play().catch(() => resolve())
           })
+        }
+        if (ttsRes.status === 503) {
+          emitTtsWarning('all_providers_failed')
         }
         console.warn('[TTS] HTTP', ttsRes.status, '-> browser speech fallback')
       } catch (e) {
